@@ -2,6 +2,8 @@
 
 namespace Classes\Common\OpenID;
 
+use \ErrorException;
+
 /**
  * Modified by Felix Kastner <felix@chapterfain.com>
  * Instead of taking string $host, the constructor now takes
@@ -82,6 +84,10 @@ class LightOpenID
         'pref/timezone'           => 'timezone',
     );
 
+    /**
+     * @param array $config contains predefined configuration for OpenID
+     * @throws \ErrorException if neither curl nor https is enabled
+     */
     function __construct($config)
     {
         $this->trustRoot = (strpos($config['host'], '://') ? $config['host'] : 'http://' . $config['host']);
@@ -131,11 +137,17 @@ class LightOpenID
         $this->$name = $this->claimed_id = $value;
     }
 
+    /**
+     * Setter.
+     *
+     * @param string $name
+     * @param string $value
+     */
     function __set($name, $value)
     {
         switch ($name) {
             case 'identity':
-                $this->setIdentity($name, value);
+                $this->setIdentity($name, $value);
                 break;
             case 'trustRoot':
             case 'realm':
@@ -143,6 +155,10 @@ class LightOpenID
         }
     }
 
+    /**
+     * @param $name
+     * @return null|string
+     */
     function __get($name)
     {
         switch ($name) {
@@ -156,14 +172,16 @@ class LightOpenID
                 return $this->trustRoot;
             case 'mode':
                 return empty($this->data['openid_mode']) ? null : $this->data['openid_mode'];
+            default:
+                return null;
         }
     }
 
     /**
      * Checks if the server specified in the url exists.
      *
-     * @param $url url to check
-     * @return true, if the server exists; false otherwise
+     * @param string $url url to check
+     * @return bool true, if the server exists; false otherwise
      */
     function hostExists($url)
     {
@@ -180,6 +198,16 @@ class LightOpenID
         return !!gethostbynamel($server);
     }
 
+    /**
+     * Curl Request
+     *
+     * @param $url
+     * @param string $method
+     * @param array $params
+     * @param $update_claimed_id
+     * @return array|mixed|string
+     * @throws \ErrorException
+     */
     protected function request_curl($url, $method='GET', $params=array(), $update_claimed_id)
     {
         $params = http_build_query($params, '', '&');
@@ -258,6 +286,11 @@ class LightOpenID
         return $response;
     }
 
+    /**
+     * @param $array
+     * @param $update_claimed_id
+     * @return array
+     */
     protected function parse_header_array($array, $update_claimed_id)
     {
         $headers = array();
@@ -288,6 +321,14 @@ class LightOpenID
         return $headers;
     }
 
+    /**
+     * @param $url
+     * @param string $method
+     * @param array $params
+     * @param $update_claimed_id
+     * @return array|string
+     * @throws \ErrorException
+     */
     protected function request_streams($url, $method='GET', $params=array(), $update_claimed_id)
     {
         if(!$this->hostExists($url)) {
@@ -357,6 +398,8 @@ class LightOpenID
                 # And restore them.
                 stream_context_get_default($default);
                 return $headers;
+            default:
+                $opts = array();
         }
 
         if($this->verify_peer) {
@@ -379,6 +422,13 @@ class LightOpenID
         return $data;
     }
 
+    /**
+     * @param $url
+     * @param string $method
+     * @param array $params
+     * @param bool $update_claimed_id
+     * @return array|mixed|string
+     */
     protected function request($url, $method='GET', $params=array(), $update_claimed_id=false)
     {
         if (function_exists('curl_init')
@@ -389,6 +439,11 @@ class LightOpenID
         return $this->request_streams($url, $method, $params, $update_claimed_id);
     }
 
+    /**
+     * @param $url
+     * @param $parts
+     * @return string
+     */
     protected function build_url($url, $parts)
     {
         if (isset($url['query'], $parts['query'])) {
@@ -423,12 +478,14 @@ class LightOpenID
 
     /**
      * Performs Yadis and HTML discovery. Normally not used.
-     * @param $url Identity URL.
+     * @param string $url Identity URL.
      * @return String OP Endpoint (i.e. OpenID provider address).
      * @throws ErrorException
      */
     function discover($url)
     {
+        $content = '';
+
         if (!$url) throw new ErrorException('No identity supplied.');
         # Use xri.net proxy to resolve i-name identities
         if (!preg_match('#^https?:#', $url)) {
@@ -567,6 +624,9 @@ class LightOpenID
         throw new ErrorException('Endless redirection!', 500);
     }
 
+    /**
+     * @return array
+     */
     protected function sregParams()
     {
         $params = array();
@@ -594,6 +654,9 @@ class LightOpenID
         return $params;
     }
 
+    /**
+     * @return array
+     */
     protected function axParams()
     {
         $params = array();
@@ -633,6 +696,10 @@ class LightOpenID
         return $params;
     }
 
+    /**
+     * @param $immediate
+     * @return string
+     */
     protected function authUrl_v1($immediate)
     {
         $returnUrl = $this->returnUrl;
@@ -654,6 +721,10 @@ class LightOpenID
             , array('query' => http_build_query($params, '', '&')));
     }
 
+    /**
+     * @param $immediate
+     * @return string
+     */
     protected function authUrl_v2($immediate)
     {
         $params = array(
@@ -687,10 +758,8 @@ class LightOpenID
     }
 
     /**
-     * Returns authentication url. Usually, you want to redirect your user to it.
-     * @return String The authentication url.
-     * @param String $select_identifier Whether to request OP to select identity for an user in OpenID 2. Does not affect OpenID 1.
-     * @throws ErrorException
+     * @param bool $immediate
+     * @return null|string
      */
     function authUrl($immediate = false)
     {
@@ -704,9 +773,7 @@ class LightOpenID
     }
 
     /**
-     * Performs OpenID verification with the OP.
-     * @return Bool Whether the verification was successful.
-     * @throws ErrorException
+     * @return bool|int
      */
     function validate()
     {
@@ -768,6 +835,9 @@ class LightOpenID
         return preg_match('/is_valid\s*:\s*true/i', $response);
     }
 
+    /**
+     * @return array
+     */
     protected function getAxAttributes()
     {
         $alias = null;
@@ -815,6 +885,9 @@ class LightOpenID
         return $attributes;
     }
 
+    /**
+     * @return array
+     */
     protected function getSregAttributes()
     {
         $attributes = array();

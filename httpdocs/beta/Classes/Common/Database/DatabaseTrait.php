@@ -3,7 +3,7 @@
 namespace Classes\Common\Database;
 
 /**
- * Defines the trait for the database access.
+ * DatabaseTrait Defines the traits for the database access.
  *
  * @author Felix Kastner <felix@chapterfain.com>
  */
@@ -17,9 +17,19 @@ trait DatabaseTrait
 
     protected $lastPrepared = NULL;
 
-    private $host, $username, $password, $database, $port, $persistent;
+    private $config;
     public $affectedRows = 0;
-    
+
+    /**
+     * Constructor.
+     *
+     * @param array $config Config array contains: host, user, pass, schema, port, persistent, engine, and options
+     */
+    public function __construct($config)
+    {
+        $this->config = $config;
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -36,4 +46,3 @@ trait DatabaseTrait
         return $this->stmt;
     }
 }
-?>

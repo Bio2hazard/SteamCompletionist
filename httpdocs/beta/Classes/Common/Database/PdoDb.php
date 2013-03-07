@@ -14,33 +14,6 @@ use \Exception;
 class PdoDb implements DatabaseInterface
 {
     use DatabaseTrait;
-
-    protected $dbengine, $options = array ();
-
-    /**
-     * Constructor.
-     *
-     * @param string $host      hostname to use for database connection
-     * @param string $username  username to use for database connection
-     * @param string $password  password to use for database connection
-     * @param string $database  database schema to connect to
-     * @param string $port      port to use for database connection
-     * @param bool $persistent  flag that determines whether a persistent connection will be used
-     * @param string $dbengine  name of the database engine to use; defaults to mysql
-     * @param array $options    DBO options to use, defaults to throwing exceptions and fetching data by association
-     */
-    public function __construct($host, $username, $password, $database, $port = '3306', $persistent = true, $dbengine = 'mysql', $options = array(PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                                                                                                                              PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC))
-    {
-        $this->host = $host;
-        $this->username = $username;
-        $this->password = $password;
-        $this->database = $database;
-        $this->port = $port;
-        $this->persistent = $persistent;
-        $this->dbengine = $dbengine;
-        $this->options = $options;
-    }
     
     /**
      * {@inheritdoc}
@@ -48,10 +21,10 @@ class PdoDb implements DatabaseInterface
     public function connect() 
     {
         try {
-            if($this->persistent) {
-                $this->options[PDO::ATTR_PERSISTENT] = true;
+            if($this->config['persistent']) {
+                $this->config['options'][PDO::ATTR_PERSISTENT] = true;
             }
-            $this->link = new PDO($this->dbengine . ':host=' . $this->host . ';port=' . $this->port . ';dbname=' . $this->database . ';charset=utf8', $this->username, $this->password, $this->options);
+            $this->link = new PDO($this->config['engine'] . ':host=' . $this->config['host'] . ';port=' . $this->config['port'] . ';dbname=' . $this->config['schema'] . ';charset=utf8', $this->config['user'], $this->config['pass'], $this->config['options']);
         } catch (PDOException $e) {
             throw new Exception($e->getMessage(), $e->getCode());
         }
@@ -106,7 +79,15 @@ class PdoDb implements DatabaseInterface
             throw new Exception($e->getMessage(), $e->getCode());
         }
     }
-    
+
+    /**
+     * {@inheritdoc}
+     */
+    public function lastInsert()
+    {
+        return $this->link->lastInsertId();
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -123,5 +104,3 @@ class PdoDb implements DatabaseInterface
         
     }  
 }
-
-?>

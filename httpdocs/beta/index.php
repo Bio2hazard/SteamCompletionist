@@ -1,4 +1,9 @@
 <?PHP
+/**
+ * @todo: Add error numbers to throws for multi-language errors
+ * @author Felix Kastner <felix@chapterfain.com>
+ */
+
 if(substr($_SERVER['HTTP_HOST'], 0, 4) !== 'www.') {
     header('Location: http://www.' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 }
@@ -19,15 +24,17 @@ require '../../private/Config.php';
 $autoLoader = new Classes\Common\AutoLoader\AutoLoader();
 
 use Classes\Common\DI\Pimple as Pimple;
-use Classes\Common\Database\MySqlDb as MySqlDb;
 use Classes\Common\Database\PdoDb as PdoDb;
 use Classes\Common\User\User as User;
 use Classes\Common\OpenID\LightOpenID as LightOpenID;
+use Classes\Common\Logger\DbLogger as DbLogger;
+use Classes\Common\Util\Util as Util;
+use Classes\SteamCompletionist\SteamUser\SteamUser as SteamUser;
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8" />
-    <title>Mapper Test</title>
+    <title>Steam Completionist</title>
 </head>
 <body>
 <?php
@@ -38,9 +45,8 @@ try {
         return new Config();
     });
 
-    /** @todo change DB functions to take $c['config']->db as array instead of individual values */
     $c['db'] = $c->share(function($c) {
-        return new PdoDb($c['config']->db['host'], $c['config']->db['user'], $c['config']->db['pass'], $c['config']->db['schema'], $c['config']->db['port'], $c['config']->db['persistent']);
+        return new PdoDb($c['config']->db);
     });
 
     $c['user'] = $c->share(function($c) {
@@ -51,14 +57,35 @@ try {
         return new LightOpenID($c['config']->openId);
     });
 
+    $c['logger'] = $c->share(function($c) {
+        return new DbLogger($c['config']->logger, $c['db'], $c['user']->userId, $_SERVER['REMOTE_ADDR']);
+    });
+
+    $c['util'] = $c->share(function($c) {
+        return new Util($c['logger']);
+    });
+
+    $c['steamUser'] = $c->share(function($c) {
+        return new SteamUser($c['config']->steam, $c['user']->userId, $c['db'], $c['util'], $c['logger']);
+    });
+
     /** @var \Classes\Common\Database\DatabaseInterface $db */
     $db = $c['db'];
 
-    /** @var \Classes\Common\OpenID\LightOpenID $openid  */
+    /** @var LightOpenID $openid  */
     $openid = $c['openid'];
 
-    /** @var \Classes\Common\User\User $user */
+    /** @var User $user */
     $user = $c['user'];
+
+    /** @var \Classes\Common\Logger\LoggerInterface $logger  */
+    $logger = $c['logger'];
+
+    /** @var Util $util  */
+    $util = $c['util'];
+
+    /** @var SteamUser $steamUser  */
+    $steamUser = $c['steamUser'];
 
     $_SESSION = $user->session;
     $_COOKIE = $user->cookie;
@@ -94,6 +121,8 @@ if($user->userId) {
 } else {
     echo '<a href="?login">Log in</a>';
 }
+
+$logger->addEntry('Finished');
 
 ?>
 </body>

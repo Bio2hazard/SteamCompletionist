@@ -34,7 +34,12 @@ interface DatabaseInterface
      * @throws \Exception Generic exception containing any errors caught
      */
     public function execute($data = array(), $types = '');
-    
+
+    /**
+     * @return int Last Insert ID
+     */
+    public function lastInsert();
+
     /**
      * Fetches and returns data from the database after execution
      * 
@@ -57,4 +62,3 @@ interface DatabaseInterface
      */
     public function &getStmt();
 }
-?>

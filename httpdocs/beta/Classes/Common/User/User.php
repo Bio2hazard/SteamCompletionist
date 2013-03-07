@@ -5,8 +5,9 @@ namespace Classes\Common\User;
 use Classes\Common\Database\DatabaseInterface;
 
 /**
- * Description
+ * User provides a set of functions for the authentication of a user.
  *
+ * @todo: Add optional logger support
  * @author Felix Kastner <felix@chapterfain.com>
  */
 class User

@@ -24,26 +24,6 @@ class MySqlDb implements DatabaseInterface
     protected $result;
 
     /**
-     * Constructor
-     *
-     * @param string $host      hostname to use for database connection
-     * @param string $username  username to use for database connection
-     * @param string $password  password to use for database connection
-     * @param string $database  database schema to connect to
-     * @param string $port      port to use for database connection
-     * @param bool $persistent  flag that determines whether a persistent connection will be used
-     */
-    public function __construct($host, $username, $password, $database, $port = '3306', $persistent = true)
-    {
-        $this->host = $host;
-        $this->username = $username;
-        $this->password = $password;
-        $this->database = $database;
-        $this->port = $port;
-        $this->persistent = $persistent;
-    }
-
-    /**
      * Returns all array contents as a reference. Necessary to pass a array to bind_param.
      * 
      * @param array $param Array to be referenced
@@ -67,10 +47,10 @@ class MySqlDb implements DatabaseInterface
         try {
             $this->driver = new mysqli_driver();
             $this->driver->report_mode = MYSQLI_REPORT_STRICT;
-            if($this->persistent) {
-                $this->host = 'p:' . $this->host;
+            if($this->config['persistent']) {
+                $this->host = 'p:' . $this->config['host'];
             }
-            $this->link = new mysqli($this->host, $this->username, $this->password, $this->database, $this->port);
+            $this->link = new mysqli($this->config['host'], $this->config['user'], $this->config['pass'], $this->config['schema'], $this->config['port']);
         } catch (mysqli_sql_exception $e) {
             throw new Exception($e->getMessage(), $e->getCode());
         }        
@@ -126,7 +106,15 @@ class MySqlDb implements DatabaseInterface
             throw new Exception($e->getMessage(), $e->getCode());
         }
     }
-    
+
+    /**
+     * {@inheritdoc}
+     */
+    public function lastInsert()
+    {
+        return $this->link->insert_id;
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -152,4 +140,3 @@ class MySqlDb implements DatabaseInterface
         $this->affectedRows = 0;
     }
 }
-?>
