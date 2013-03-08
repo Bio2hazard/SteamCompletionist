@@ -486,24 +486,25 @@ function addInfoCard() {
 
 $(document).ready(function () {
     "use strict";
-    
+
+    // Preloading disabled for now
     // list of images to preload
-    preload([
-        '/img/loading.gif',
-        '/css3/images/ui-bg_flat_30_cccccc_40x100.png',
-        '/css3/images/ui-bg_flat_50_5c5c5c_40x100.png',
-        '/css3/images/ui-bg_glass_20_555555_1x400.png',
-        '/css3/images/ui-bg_glass_40_0078a3_1x400.png',
-        '/css3/images/ui-bg_glass_40_ffc73d_1x400.png',
-        '/css3/images/ui-bg_gloss-wave_25_333333_500x100.png',
-        '/css3/images/ui-bg_highlight-soft_80_eeeeee_1x100.png',
-        '/css3/images/ui-bg_inset-soft_25_000000_1x100.png',
-        '/css3/images/ui-bg_inset-soft_30_f58400_1x100.png',
-        '/css3/images/ui-icons_222222_256x240.png',
-        '/css3/images/ui-icons_4b8e0b_256x240.png',
-        '/css3/images/ui-icons_a83300_256x240.png',
-        '/css3/images/ui-icons_cccccc_256x240.png',
-        '/css3/images/ui-icons_ffffff_256x240.png']);
+//    preload([
+//        '/img/loading.gif',
+//        '/css3/images/ui-bg_flat_30_cccccc_40x100.png',
+//        '/css3/images/ui-bg_flat_50_5c5c5c_40x100.png',
+//        '/css3/images/ui-bg_glass_20_555555_1x400.png',
+//        '/css3/images/ui-bg_glass_40_0078a3_1x400.png',
+//        '/css3/images/ui-bg_glass_40_ffc73d_1x400.png',
+//        '/css3/images/ui-bg_gloss-wave_25_333333_500x100.png',
+//        '/css3/images/ui-bg_highlight-soft_80_eeeeee_1x100.png',
+//        '/css3/images/ui-bg_inset-soft_25_000000_1x100.png',
+//        '/css3/images/ui-bg_inset-soft_30_f58400_1x100.png',
+//        '/css3/images/ui-icons_222222_256x240.png',
+//        '/css3/images/ui-icons_4b8e0b_256x240.png',
+//        '/css3/images/ui-icons_a83300_256x240.png',
+//        '/css3/images/ui-icons_cccccc_256x240.png',
+//        '/css3/images/ui-icons_ffffff_256x240.png']);
 
     // The refresh button sends a ajax request to reload data from steam
     // The data is then used to update the user's displayed data, refreshing all elements

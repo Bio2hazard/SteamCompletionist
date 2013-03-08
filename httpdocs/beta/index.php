@@ -114,7 +114,7 @@ try {
     $steamUser->loadLocalUserInfo();
 
     // Populate websites' steamUser
-    $website->setSteamUser($c['steamUser']);
+    $website->setSteamUser($steamUser);
 
 } catch (Exception $e) {
     $website->error = $e->getMessage();
