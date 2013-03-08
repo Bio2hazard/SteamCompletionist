@@ -33,6 +33,14 @@ trait DatabaseTrait
     /**
      * {@inheritdoc}
      */
+    public function getAffected()
+    {
+        return $this->affectedRows;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function &getLink() 
     {
         return $this->link;

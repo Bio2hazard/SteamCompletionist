@@ -52,24 +52,25 @@ class DbLogger implements LoggerInterface
             return false;
         }
 
-        if(!$this->id) {
-            $this->db->prepare('INSERT INTO `debugLog` SET `ts` = now(), `ipn` = INET_ATON(?), `userid` = ?');
-            $data[0] = $this->ip;
-            $data[1] = $this->userId;
-            $this->db->execute($data, 'is');
-            unset($data);
-            $this->id = $this->db->lastInsert();
-            $this->addEntry('Debug log init', false);
+        try {
+            if(!$this->id) {
+                $this->db->prepare('INSERT INTO `debugLog` SET `ts` = now(), `ipn` = INET_ATON(?), `userid` = ?');
+                $data[0] = $this->ip;
+                $data[1] = $this->userId;
+                $this->db->execute($data, 'is');
+                unset($data);
+                $this->id = $this->db->lastInsert();
+                $this->addEntry('Debug log init', false);
+            }
+            $this->db->prepare('INSERT INTO `debugLogEntries` SET `debugLogId` = ?, `message` = ?, `elapsed` = ?');
+            $now = microtime(true);
+            $data[0] = $this->id;
+            $data[1] = $message;
+            $data[2] = ($timestamp) ? ($now - $this->startTime) : 0;
+            $this->db->execute($data, 'isf');
+        } catch(\Exception $e) {
+            throw $e;
         }
-
-        $this->db->prepare('INSERT INTO `debugLogEntries` SET `debugLogId` = ?, `message` = ?, `elapsed` = ?');
-
-        $now = microtime(true);
-
-        $data[0] = $this->id;
-        $data[1] = $message;
-        $data[2] = ($timestamp) ? ($now - $this->startTime) : 0;
-        $this->db->execute($data, 'isf');
         return true;
     }
 

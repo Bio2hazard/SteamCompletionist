@@ -36,12 +36,12 @@ interface DatabaseInterface
     public function execute($data = array(), $types = '');
 
     /**
-     * @return int Last Insert ID
+     * @return int Last Insert ID.
      */
     public function lastInsert();
 
     /**
-     * Fetches and returns data from the database after execution
+     * Fetches and returns data from the database after execution.
      * 
      * @return array Database result set
      */
@@ -51,7 +51,12 @@ interface DatabaseInterface
      * Closes a prepared statement and frees any memory associated with it.
      */
     public function close();
-    
+
+    /**
+     * @return int Returns the number of affected rows.
+     */
+    public function getAffected();
+
     /**
      * @return mixed Returns a (reference) to the active database connection.
      */

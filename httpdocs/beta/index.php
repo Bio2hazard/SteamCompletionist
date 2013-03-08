@@ -29,15 +29,11 @@ use Classes\Common\User\User as User;
 use Classes\Common\OpenID\LightOpenID as LightOpenID;
 use Classes\Common\Logger\DbLogger as DbLogger;
 use Classes\Common\Util\Util as Util;
-use Classes\SteamCompletionist\SteamUser\SteamUser as SteamUser;
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8" />
-    <title>Steam Completionist</title>
-</head>
-<body>
-<?php
+use Classes\SteamCompletionist\Steam\SteamUser as SteamUser;
+use Classes\SteamCompletionist\Html\WebSite as WebSite;
+
+$website = new WebSite();
+
 try {
     $c = new Pimple();
 
@@ -65,10 +61,6 @@ try {
         return new Util($c['logger']);
     });
 
-    $c['steamUser'] = $c->share(function($c) {
-        return new SteamUser($c['config']->steam, $c['user']->userId, $c['db'], $c['util'], $c['logger']);
-    });
-
     /** @var \Classes\Common\Database\DatabaseInterface $db */
     $db = $c['db'];
 
@@ -84,9 +76,6 @@ try {
     /** @var Util $util  */
     $util = $c['util'];
 
-    /** @var SteamUser $steamUser  */
-    $steamUser = $c['steamUser'];
-
     $_SESSION = $user->session;
     $_COOKIE = $user->cookie;
 
@@ -97,8 +86,7 @@ try {
         $_COOKIE = $user->cookie;
         header('Location: http://' . $_SERVER['HTTP_HOST'] . substr($_SERVER['REQUEST_URI'], 0, strpos($_SERVER['REQUEST_URI'], '?')));
     } elseif($openid->mode) {
-        /** @todo proper "Hey, the login process failed!" message. */
-        echo 'Login failed ( ' . $openid->mode . ' )';
+        throw new Exception('Login through Steam failed.');
     }
 
     if(isset($_GET['login'])) {
@@ -110,20 +98,30 @@ try {
         header('Location: http://' . $_SERVER['HTTP_HOST'] . substr($_SERVER['REQUEST_URI'], 0, strpos($_SERVER['REQUEST_URI'], '?')));
     }
 
-    echo 'Logged in as user: ' . $user->userId . '<br>' . PHP_EOL;
+    // If user is not logged in, we can exit out of the try block and show the website in logged out state.
+    if(!$user->loggedIn()) {
+        throw new Exception('');
+    }
+
+    $c['steamUser'] = $c->share(function($c) {
+        return new SteamUser($c['config']->steam, $c['user']->userId, $c['db'], $c['util'], $c['logger']);
+    });
+
+    /** @var SteamUser $steamUser  */
+    $steamUser = $c['steamUser'];
+
+    // Load the local userdata ( will fall back to remote loading if no local data is available )
+    $steamUser->loadLocalUserInfo();
+
+    // Populate websites' steamUser
+    $website->setSteamUser($c['steamUser']);
 
 } catch (Exception $e) {
-    echo $e->getMessage();
+    $website->error = $e->getMessage();
 }
 
-if($user->userId) {
-    echo '<a href="?logout">Log out</a>';
-} else {
-    echo '<a href="?login">Log in</a>';
-}
+$website->display();
 
-$logger->addEntry('Finished');
-
-?>
-</body>
-</html>
+try {
+    $logger->addEntry('Finished');
+} catch (Exception $e) {}

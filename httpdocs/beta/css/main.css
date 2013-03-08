@@ -1,0 +1,422 @@
+/**
+ * Main CSS File
+
+ * @author: Felix Kastner <felix@chapterfain.com>
+ */
+
+/* HTML5 tags */
+header, section, footer,
+aside, nav, article, figure {
+	display: block;
+}
+
+/* Tag defaults */
+html {
+    height: 100%;
+}
+
+body {
+    font-family:Arial, Helvetica, Verdana, sans-serif;
+    font-size: 0.75em;
+    background-color: #2d2d2b;
+    color: #939393;
+    text-align: center;
+    margin: 0;
+    padding: 0;    
+    height: 100%;
+    overflow: hidden;
+}
+
+footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+}
+
+a, a:hover, a:active, a:visited {
+	color: #ebebeb;
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+	color: #FFFFFF;
+}
+
+strong {
+    font-weight: bold;
+}
+
+h1 {
+    font-size: 2em;
+}
+
+h2 {
+    font-size: 1.6em;
+}
+/* Classes */
+
+/* .webtitle is used for the website's title */
+h1.webtitle {
+    float: left;
+}
+
+/* .beattag is used for the "Beat these games" tag */
+h2.beattag {
+    text-align: left;
+    font-weight:bold;
+    margin-bottom:-5px;
+    padding-left: 0.6em;
+}
+
+/* .steamuser is used for the header box to the right of the title*/
+div.steamuser {
+    float: right;
+}
+
+/* .header encompasses the top-most bar which contains user information & the title */
+header.header {
+    padding: 1.2em 0 1.2em 0;
+    text-align: left;
+    border-bottom-width: 1px;
+    border-bottom-color: #939393;
+    border-bottom-style: solid;
+    width: 100%;    
+    height: 24px;
+    white-space: nowrap;
+    overflow:hidden;
+}
+
+/* .body encompasses the top-most bar which contains user information & the title */
+div.body {
+    clear: both; 
+    margin: 0 auto; 
+    max-width: 1200px;
+}
+
+/* .logged is a position fix for all right-hand elements in the top-most bar */
+div.logged {
+    margin: -6px 0 0 0;
+}
+
+/* .avatar is for the steam avatar picture and adds the colored border */
+img.avatar {
+    vertical-align: top;
+    border: 3px #898989 solid;
+    border-radius: 5px;
+}
+
+/* .statustext is used for the both the steam username as well as their status */
+span.statustext {
+    position: relative;
+    top: 8px;
+    font-size: 0.8em;
+    font-weight: bold;
+    padding-left: 5px;
+    display: inline-block;
+    color: #898989;
+    margin-top: -8px;
+}
+
+/* .online and .ingame are overrides that change the border & text color dependant on the user's status */
+span.online, img.online {
+    color: #62a7e3;
+    border-color: #62a7e3;
+}
+span.ingame, img.ingame {
+    color: #8bc53f;
+    border-color: #8bc53f;
+}
+
+/* .games encompasses the whole "to beat" list */
+header.games {
+    padding: 0.3em 0 0.2em 0;
+    text-align: center;
+    border-bottom-width: 1px;
+    border-bottom-color: #939393;
+    border-bottom-style: solid;
+    
+    height:137px;
+    white-space: nowrap;
+    overflow-y: hidden;
+    overflow-x: auto;
+}
+
+/* .game_body encompasses the whole "to beat" list */
+div.game_body {
+    clear: both;
+    margin: 0 auto;
+    padding: 0 1em;
+}
+
+/* .game_boxes sets up the game boxes of the "to beat" list */ 
+div.game_boxes {
+    text-align: center;
+    display: inline-block;
+}
+
+/* .game_box sets up the individual game box of each "to beat" game */ 
+div.game_box {
+    margin: 1em 1em 2em 1em;
+    display:inline-block;
+    width: 184px; 
+    height: 69px;
+    border: 3px #62a7e3 solid;
+    border-radius: 5px;
+    background-color: #222;
+    vertical-align: bottom;
+    overflow: hidden;
+    position: relative;
+    z-index: 2;
+    color: #454545;
+}
+
+div.game_box > img.game_image {
+    cursor: pointer;
+}
+
+/* .empty_game_box pretty self-explanatory; sets up the empty box */
+div.empty_game_box {
+    height: 69px;
+    width: 184px;
+    text-align: center;
+    font-size: 1.4em;
+    white-space: normal;
+    font-weight: bold;
+    padding-top:15px;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    cursor: default;
+}
+
+/* .empty_game_box adds the "Drop a game to beat here" text */
+div.empty_game_box:after {
+    content: 'Drop a game to beat here';
+    white-space: pre-wrap;
+}
+
+/* .over is used by the main.js file to change the border-color of a "to beat" game box when a eligible game is dragged over it */
+.over {
+    border: 3px double #8bc53f;
+    color: #8bc53f;
+}
+
+/* .list_wrapper encompasses the whole games list */
+div.list_wrapper {
+    position: absolute;
+    top: 198px;
+    bottom: 24px;
+    width: 100%;
+}
+
+/* .list_body encompasses the whole games list */
+div.list_body {
+    clear: both;
+    margin: 0 auto;
+    padding: 1em 1em;
+    overflow: auto;
+    height: 100%;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* .list_box sets up the individual game box of each game in the main list */ 
+div.list_box {
+    margin: 1em 1em 2em 1em;
+    display:inline-block;
+    width: 184px; 
+    height: 69px;
+    border: 3px #62a7e3 solid;
+    border-radius: 5px;
+    overflow: hidden;
+    background-color: #1A1A1A;
+    vertical-align: top;
+}
+
+div.list_box > img.game_image {
+    cursor: pointer;
+}
+
+/* .list_box_active is used for games in the main list that have a active info box */
+.list_box_active {
+    position: relative;
+    z-index:1;   
+}
+
+/* .list_box_locked is currently not used, but intended to be used by blacklisted games */
+.list_box_locked {
+    margin: 1em;
+    display:inline-block;
+    width: 184px; 
+    height: 69px;
+    border: 3px #62a7e3 solid;
+    border-radius: 5px;
+}
+
+/* .percent_box is used for the percent display in active info cards as well as the games in the "to beat" list */
+.percent_box {
+    position: relative;
+    top: -20px;
+    font-weight: bold;
+    text-align: center;
+    color: #222;
+    font-size: 1.2em;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    cursor: pointer;
+}
+
+/* .act_btn is used by all the buttons in the info panels */
+.act_btn {
+    margin-top: 3px;
+    margin-left: 4px;
+    float: left;
+    font-size: 0.8em;
+    border-radius: 4px;
+}
+
+/* .pin and .unpin is the left-most button in the info panel */
+.pin, .unpin {
+    margin-left: 5px;   
+}
+
+/* .blacklist is the right-most button in the info panel */
+.blacklist {
+    margin-right: 5px;    
+}
+
+/* .achiev_bar is used for the achievement progress bar */
+.achiev_bar {
+    margin-top: 3px;
+    margin-left: 5px;
+    margin-right: 5px;
+    height: 21px;
+    font-size: 0.9em;
+}
+
+/* .credits is the Powered By Steam box at the bottom of the website */
+.credits {
+    background-color: #2d2d2b;
+    width: 120px;
+    border-top-left-radius: 9px;
+    border-top-right-radius: 9px;
+    margin: 0 auto;
+    line-height: 120%;
+}
+
+/* .loader is the indicator used to show AJAX activity */
+p.loader {
+    float: left;
+    font-family:Arial, Helvetica, Verdana, sans-serif;
+    display: none;
+    vertical-align: text-top;
+    padding-right: 15px;
+    padding-top: 8px;
+    text-align: center;
+    line-height: 80%;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+/* .topbutton is used for the buttons next to the user profile */
+button.topbutton {
+    float: left;
+    max-width: 30px;
+    max-height: 30px;
+    margin-right: 5px;
+    margin-top: 4px;
+}
+
+/* .fader is used to highlight the possible drop zones while user is drag & dropping */
+div.fader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background-color: #000000;
+    z-index: 0;
+    display: none;
+    opacity: 0;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* custom class to use with jQuery UI's tooltips */
+.custom_ttip {
+    padding: 5px;
+    max-width:250px;
+    font-size: 1.3em;
+}
+
+/* General classes not currently used */
+img.right, figure.right {float: right; margin: 0 0 2em 2em;}
+img.left, figure.left {float: right; margin: 0 0 2em 2em;}
+
+/* jQuery UI overrides */
+
+/* ensures that the curser does not change on disabled elements */
+.ui-state-disabled > img.game_image {
+    cursor: default;
+}
+
+/* changes the default jQuery UI progress bar */
+.ui-progressbar .ui-progressbar-value {
+    background: rgb(200,0,0);
+    background-image: url(../img/pbar.png);
+    background-size: 28px 22px;
+    text-align: center;
+    padding-top:4px;
+    overflow:hidden;
+    border-radius: 0;
+}
+
+/* changes the default jQuery UI progress bar */
+.ui-progressbar {
+    position: relative;
+    top: 1px;
+    background: rgba(255, 255, 255, 0.6);
+    border-top-style: none;
+    overflow:hidden;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* These are used to adjust the jQuery UI pop-up message window  */
+.state-title {
+    padding-top: 2px;
+    font-weight: bold;
+}
+
+.state-content {
+    text-align: left; 
+    padding: 6px 5px;
+}
+
+.state-title-icon {
+    display: inline-block;
+    margin-right: 4px;
+    padding-bottom:1px;
+    vertical-align: text-bottom;
+}
+
+/* Positions the user data to the right of the top-most bar */
+#userdata {
+    float: right;
+}
+
+#error {
+    display: none;
+}
