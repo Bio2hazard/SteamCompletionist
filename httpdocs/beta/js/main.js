@@ -76,12 +76,16 @@ function loadData(mode, gameid, value) {
                 if (typeof data.steamgames !== 'undefined') {
                     for (var key in data.steamgames) {
                         if (!$('#' + key).length) {
-                            $('.list_boxes').prepend('<div id="' + key + '" class="list_box"><img class="game_image" width="184" height="69" data-hours2weeks="' + data.steamgames[key].hours2weeks + '" data-hourstotal="' + data.steamgames[key].hourstotal + '" data-gameid="' + key + '" alt="' + data.steamgames[key].name + '" src="./img/game/' + key + '.jpg" data-achievper="' + data.steamgames[key].achievper + '" /></div>');
+                            if(data.steamgames[key].achievper.length) {
+                                $('.list_boxes').prepend('<div id="' + key + '" class="list_box"><img class="game_image" width="184" height="69" data-minutes2weeks="' + data.steamgames[key].minutes2weeks + '" data-minutestotal="' + data.steamgames[key].minutestotal + '" data-gameid="' + key + '" alt="' + data.steamgames[key].name + '" src="./img/game/' + key + '.jpg" data-achievper="' + data.steamgames[key].achievper + '" /></div>');
+                            } else {
+                                $('.list_boxes').prepend('<div id="' + key + '" class="list_box"><img class="game_image" width="184" height="69" data-minutes2weeks="' + data.steamgames[key].minutes2weeks + '" data-minutestotal="' + data.steamgames[key].minutestotal + '" data-gameid="' + key + '" alt="' + data.steamgames[key].name + '" src="./img/game/' + key + '.jpg"/></div>');
+                            }
                             $('#' + key).setListDrag();
                             $('#' + key).children('.game_image').addTooltip();
                             $('#' + key).on('click', '.game_image', addInfoCard);
                         } else {
-                            $('.game_image[data-gameid="' + key + '"]').attr('data-hours2weeks', data.steamgames[key].hours2weeks).attr('data-hourstotal', data.steamgames[key].hourstotal).attr('data-achievper', data.steamgames[key].achievper);
+                            $('.game_image[data-gameid="' + key + '"]').attr('data-minutes2weeks', data.steamgames[key].minutes2weeks).attr('data-minutestotal', data.steamgames[key].minutestotal).attr('data-achievper', data.steamgames[key].achievper);
                         }
                     }
                 }
@@ -280,7 +284,11 @@ $.fn.achievementBarAnimate = function (gameid, percentage) {
 // jQuery extension to display the achievement percentage bar
 $.fn.achievementBar = function (load) {
     "use strict";
-    var myPer = parseInt($(this).attr('data-achievper'), 10);
+    var myPer = 142;
+
+    if($(this).attr('data-achievper')) {
+        myPer = parseInt($(this).attr('data-achievper'), 10);
+    }
 
     if(myPer > 100) {
         $(this).siblings('.sel_progress').progressbar({
@@ -315,7 +323,7 @@ $.fn.achievementBar = function (load) {
 
     }
 
-    if(typeof load !== 'undefined' && load) {
+    if(typeof load !== 'undefined' && load && myPer < 100) {
         loadData('achievpercent', $(this).attr('data-gameid'), 0);
     }
 

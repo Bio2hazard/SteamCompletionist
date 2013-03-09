@@ -13,6 +13,8 @@ use Classes\Common\Util\Util;
  */
 class SteamGame
 {
+    private $config;
+
     /** @var DatabaseInterface $db */
     private $db;
 
@@ -22,39 +24,76 @@ class SteamGame
     /** @var Util $util */
     private $util;
 
-    public $appId, $name, $hoursTotal, $hours2Weeks, $hoursStored, $internalName, $gameSlot, $achievementPercentage, $logo, $steamLogo, $status;
+    public $appId, $name, $minutesTotal, $minutes2Weeks, $minutesStored, $gameSlot, $achievementPercentage, $logoHash, $iconHash, $community, $status;
 
     /**
-     * Constructor.
+     * Constructor
      *
      * @param $appId
+     * @param $config
      * @param \Classes\Common\Database\DatabaseInterface $db
      * @param \Classes\Common\Logger\LoggerInterface $logger
      * @param \Classes\Common\Util\Util $util
      * @param $name
-     * @param $hoursTotal
-     * @param $hours2Weeks
-     * @param $hoursStored
-     * @param $internalName
+     * @param $minutesTotal
+     * @param $minutes2Weeks
+     * @param $minutesStored
      * @param $gameSlot
      * @param $achievementPercentage
-     * @param string $steamLogo
+     * @param $logoHash
+     * @param $iconHash
+     * @param $community
      */
-    public function __construct($appId, DatabaseInterface $db, LoggerInterface $logger, Util $util, $name, $hoursTotal, $hours2Weeks, $hoursStored, $internalName, $gameSlot, $achievementPercentage, $steamLogo = '')
+    public function __construct($appId, $config, DatabaseInterface $db, LoggerInterface $logger, Util $util, $name, $minutesTotal, $minutes2Weeks, $minutesStored, $gameSlot, $achievementPercentage, $logoHash, $iconHash, $community)
     {
         $this->appId = $appId;
+        $this->config = $config;
         $this->db = $db;
         $this->logger = $logger;
         $this->util = $util;
         $this->name = $name;
-        $this->hoursTotal = $hoursTotal;
-        $this->hours2Weeks = $hours2Weeks;
-        $this->hoursStored = $hoursStored;
-        $this->internalName = $internalName;
+        $this->minutesTotal = $minutesTotal;
+        $this->minutes2Weeks = $minutes2Weeks;
+        $this->minutesStored = $minutesStored;
         $this->gameSlot = $gameSlot;
         $this->achievementPercentage = $achievementPercentage;
-        $this->logo = './img/game/'.$appId.'.jpg';
-        $this->steamLogo = $steamLogo;
+        $this->logoHash = $logoHash;
+        $this->iconHash = $iconHash;
+        $this->community = $community;
+    }
+
+    /**
+     * Contacts the steam servers and grabs the achievement list for that game and that user. Then, a percentage is calculated and stored.
+     *
+     * @param $steamId
+     */
+    public function getAchievementPercentage($steamId)
+    {
+        $achievements = @json_decode($this->util->file_get_contents_curl('http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?key=' . $this->config['key'] . '&steamid=' . $steamId . '&appid=' . $this->appId))->playerstats;
+        $curlSuccess = false;
+        $percentage = 142;
+
+        if(isset($achievements->success) && $achievements->success === true) {
+            $curlSuccess = true;
+            $total = 0;
+            $achieved = 0;
+            foreach($achievements->achievements as $value) {
+                $total++;
+                if($value->achieved)
+                    $achieved++;
+            }
+            $percentage = round(($achieved / $total)*100);
+            $this->logger->addEntry('Achievements for '.$achievements->gameName.' loaded successfully. ');
+        } elseif(isset($achievements->success) && $achievements->success === false) {
+            $curlSuccess = true;
+            $this->logger->addEntry('Achievements for ' . $achievements->gameName . ' could not be loaded: ' . $achievements->error);
+        }
+
+        if($curlSuccess) {
+            $this->db->prepare('UPDATE ownedGamesDB SET `achievPer` = ? WHERE `steamid` = ? AND `appid` = ?');
+            $this->db->execute(array($percentage, $steamId, $this->appId), 'isi');
+            $this->achievementPercentage = $percentage;
+        }
     }
 
     /**
@@ -65,19 +104,20 @@ class SteamGame
      */
     public function saveGame($steamId)
     {
-        $this->db->prepare('INSERT INTO `steamGameDB` (`appid`, `name`, `internal`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `name` = ?, `internal` = ?');
-        $this->db->execute(array($this->appId, $this->name, $this->internalName, $this->name, $this->internalName), 'issss');
+        $this->db->prepare('INSERT INTO `steamGameDB` (`appid`, `name`, `community`, `logo`, `icon`) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE `name` = ?, `community` = ?, `logo` = ?, `icon` = ?');
+        $this->db->execute(array($this->appId, $this->name, $this->community, $this->logoHash, $this->iconHash, $this->name, $this->community, $this->logoHash, $this->iconHash), 'isisssiss');
 
-        if(!file_exists($this->logo) && $this->steamLogo)
-        {
-            $game_logo = @$this->util->file_get_contents_curl($this->steamLogo);
-            if(!@file_put_contents($this->logo, $game_logo)) {
-                throw new \Exception('Creating game logo failed.');
-            }
-        }
+        // Legacy code for storing the game logo locally
+//        if(!file_exists($this->logo) && $this->steamLogo)
+//        {
+//            $game_logo = @$this->util->file_get_contents_curl($this->steamLogo);
+//            if(!@file_put_contents($this->logo, $game_logo)) {
+//                throw new \Exception('Creating game logo failed.');
+//            }
+//        }
 
-        $this->db->prepare('INSERT INTO `ownedGamesDB` (`steamid`, `appid`, `hoursTotal`, `hours2Weeks`) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE `hoursTotal` = ?, `hours2Weeks` = ?');
-        $this->db->execute(array($steamId, $this->appId, $this->hoursTotal, $this->hours2Weeks, $this->hoursTotal, $this->hours2Weeks), 'sidddd');
+        $this->db->prepare('INSERT INTO `ownedGamesDB` (`steamid`, `appid`, `minutesTotal`, `minutes2Weeks`) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE `minutesTotal` = ?, `minutes2Weeks` = ?');
+        $this->db->execute(array($steamId, $this->appId, $this->minutesTotal, $this->minutes2Weeks, $this->minutesTotal, $this->minutes2Weeks), 'siiiii');
     }
 
     /**

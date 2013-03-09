@@ -74,7 +74,6 @@ class PdoDb implements DatabaseInterface
             if($this->stmt->rowCount()) {
                 $this->affectedRows = $this->stmt->rowCount();
             }
-            
         } catch (PDOException $e) {
             throw new Exception($e->getMessage(), $e->getCode());
         }

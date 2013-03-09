@@ -1,11 +1,10 @@
 <?PHP
 /**
- * @todo: jQuery UI sorted by minutes2Weeks even on ajax updates?
- * @todo: On first login to the website ( creating the steamUserDB entry ): Pre-populate toBeat slots with last Played games
- * @todo: Add error numbers to throws for multi-language errors
+ * Handles all AJAX requests.
+ * Mostly just the same as index.php
+ *
  * @author Felix Kastner <felix@chapterfain.com>
  */
-
 if(substr($_SERVER['HTTP_HOST'], 0, 4) !== 'www.') {
     header('Location: http://www.' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 }
@@ -26,15 +25,12 @@ require '../../private/Config.php';
 $autoLoader = new Classes\Common\AutoLoader\AutoLoader();
 
 use Classes\Common\DI\Pimple as Pimple;
-use Classes\Common\Database\PdoDb as Db;
+use Classes\Common\Database\PdoDb as PdoDb;
 use Classes\Common\User\User as User;
 use Classes\Common\OpenID\LightOpenID as LightOpenID;
 use Classes\Common\Logger\DbLogger as DbLogger;
 use Classes\Common\Util\Util as Util;
 use Classes\SteamCompletionist\Steam\SteamUser as SteamUser;
-use Classes\SteamCompletionist\Html\WebSite as WebSite;
-
-$website = new WebSite();
 
 try {
     $c = new Pimple();
@@ -44,7 +40,7 @@ try {
     });
 
     $c['db'] = $c->share(function($c) {
-        return new Db($c['config']->db);
+        return new PdoDb($c['config']->db);
     });
 
     $c['user'] = $c->share(function($c) {
@@ -81,40 +77,9 @@ try {
     $_SESSION = $user->session;
     $_COOKIE = $user->cookie;
 
-    if($openid->mode === 'id_res' && $openid->validate()) {
-        // Login Successful
-        $user->userId = substr($openid->data['openid_claimed_id'],36);
-
-        $c['steamUser'] = $c->share(function($c) {
-            return new SteamUser($c['config']->steam, $c['user']->userId, $c['db'], $c['util'], $c['logger']);
-        });
-
-        /** @var SteamUser $steamUser  */
-        $steamUser = $c['steamUser'];
-
-        $steamUser->loadLocalUserInfo();
-
-        $user->login($user->userId);
-
-        $_SESSION = $user->session;
-        $_COOKIE = $user->cookie;
-        header('Location: http://' . $_SERVER['HTTP_HOST'] . substr($_SERVER['REQUEST_URI'], 0, strpos($_SERVER['REQUEST_URI'], '?')));
-    } elseif($openid->mode) {
-        throw new Exception('Login through Steam failed.');
-    }
-
-    if(isset($_GET['login'])) {
-        header('Location: ' . $openid->authUrl());
-    } elseif(isset($_GET['logout'])) {
-        $user->logout();
-        $_SESSION = $user->session;
-        $_COOKIE = $user->cookie;
-        header('Location: http://' . $_SERVER['HTTP_HOST'] . substr($_SERVER['REQUEST_URI'], 0, strpos($_SERVER['REQUEST_URI'], '?')));
-    }
-
     // If user is not logged in, we can exit out of the try block and show the website in logged out state.
     if(!$user->loggedIn()) {
-        throw new Exception;
+        throw new Exception('Not logged in.');
     }
 
     $c['steamUser'] = $c->share(function($c) {
@@ -124,21 +89,48 @@ try {
     /** @var SteamUser $steamUser  */
     $steamUser = $c['steamUser'];
 
-    // Load the local userdata ( will fall back to remote loading if no local data is available )
-    $steamUser->loadLocalUserInfo();
 
-    // Load the local gamedata ( will fall back to remote loading if no local data is available )
-    $steamUser->loadLocalGames();
+    $return = array();
 
-    // Populate websites' steamUser
-    $website->setSteamUser($steamUser);
+    switch($_GET['mode'])
+    {
+        case 'getsteamdata':
+            $steamUser->loadRemoteUserInfo();
+            $steamUser->loadRemoteGames();
+            $return['steamuser'] = $steamUser->getUserData();
+            $return['steamgames'] = $steamUser->getGameData();
+            $return['deletelist'] = $steamUser->getDeleteList();
+            break;
 
+        case 'achievpercent':
+            if(!$_GET['gid'] || !is_numeric($_GET['gid'])) {
+                throw new Exception('Invalid game id.');
+            }
+            $gameId = $_GET['gid'];
+
+            /** @todo: Query database only for the game in question, rather than grabbing all games */
+            $steamUser->loadLocalGames();
+
+            if(isset($steamUser->games[$gameId])) {
+                /** @var \Classes\SteamCompletionist\Steam\SteamGame $game  */
+                $game = $steamUser->games[$gameId];
+                if($game->community) {
+                    $game->getAchievementPercentage($user->userId);
+                    $return['gameachiev'] = array('gameid' => $gameId, 'percentage' => $game->achievementPercentage);
+                }
+            }
+            break;
+
+        default:
+            throw new Exception('No mode specified.');
+            break;
+    }
+
+
+
+
+    $logger->addEntry('Ajax request finished');
+    echo json_encode($return);
 } catch (Exception $e) {
-    $website->error = $e->getMessage();
+    echo json_encode(array('errorlog'=>$e->getMessage()));
 }
-
-$website->display();
-
-try {
-    $logger->addEntry('Finished');
-} catch (Exception $e) {}
