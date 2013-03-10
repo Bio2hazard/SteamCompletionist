@@ -102,14 +102,45 @@ try {
             $return['deletelist'] = $steamUser->getDeleteList();
             break;
 
+        case 'savegamestatus':
+            // Sanity Checks:
+            if(!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 2 || $_GET['value'] < 0)
+                die(json_encode(array("errorlog" => "Invalid game slot. ")));
+            $status = $_GET['value'];
+
+            if(!$_GET['gid'] || !is_numeric($_GET['gid']))
+                die(json_encode(array("errorlog" => "Invalid game id. ")));
+            $gameId = $_GET['gid'];
+
+            if($steamUser->loadLocalGame($gameId)) {
+                $steamUser->setStatus($gameId, $status);
+            }
+
+            break;
+
+        case 'savegameslot':
+            // Sanity Checks:
+            if(!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 10 || $_GET['value'] < 0)
+                die(json_encode(array("errorlog" => "Invalid game slot. ")));
+            $slot = $_GET['value'];
+
+            if(!$_GET['gid'] || !is_numeric($_GET['gid']))
+                die(json_encode(array("errorlog" => "Invalid game id. ")));
+            $gameId = $_GET['gid'];
+
+            if($steamUser->loadLocalGame($gameId)) {
+                $steamUser->setSlot($gameId, $slot);
+            }
+            break;
+
         case 'achievpercent':
+            // Sanity Checks:
             if(!$_GET['gid'] || !is_numeric($_GET['gid'])) {
                 throw new Exception('Invalid game id.');
             }
             $gameId = $_GET['gid'];
 
-            /** @todo: Query database only for the game in question, rather than grabbing all games */
-            $steamUser->loadLocalGames();
+            $steamUser->loadLocalGame($gameId);
 
             if(isset($steamUser->games[$gameId])) {
                 /** @var \Classes\SteamCompletionist\Steam\SteamGame $game  */

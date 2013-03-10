@@ -120,22 +120,40 @@ class WebSite
                     // For now we assume a "to beat" list of 5 games. Can be expanded / user-set later on
                     for($x = 1; $x <= 5; $x++)
                     {
+                        $string = '';
+                        $beaten = '';
                         // Create the game box / empty box
-                        $string = '<div id="game_box_'.$x.'" class="game_box">';
                         if(isset($this->steamUser->slots[$x]) && $this->steamUser->slots[$x]) {
+                            /** @var SteamGame $game  */
+                            $game = $this->steamUser->games[$this->steamUser->slots[$x]];
+                            $logo = 'http://media.steampowered.com/steamcommunity/public/images/apps/' . $game->appId . '/';
+                            if($game->logoHash) {
+                                $logo .= $game->logoHash;
+                            } else {
+                                $logo .= $game->iconHash;
+                            }
+                            $logo .= '.jpg';
+
+
+                            if($game->gameStatus == 1) {
+                                $beaten .= ' beaten';
+                            }
+
                             $string .= '<img class="game_image"
-                                                src="' . $this->steamUser->games[$this->steamUser->slots[$x]]->logo . '"
+                                                src="' . $logo . '"
                                                 width="184" height="69"
-                                                alt="' . $this->steamUser->games[$this->steamUser->slots[$x]]->name . '"
-                                                data-gameid="' . $this->steamUser->games[$this->steamUser->slots[$x]]->appId . '"
-                                                data-minutestotal="' . $this->steamUser->games[$this->steamUser->slots[$x]]->minutesTotal . '"
-                                                data-minutes2weeks="' . $this->steamUser->games[$this->steamUser->slots[$x]]->minutes2Weeks . '"
-                                                data-achievper="' . $this->steamUser->games[$this->steamUser->slots[$x]]->achievementPercentage . '" />';
+                                                alt="' . $game->name . '"
+                                                data-gameid="' . $game->appId . '"
+                                                data-minutestotal="' . $game->minutesTotal . '"
+                                                data-minutes2weeks="' . $game->minutes2Weeks . '"
+                                                data-status="' . $game->gameStatus . '"
+                                                data-achievper="' . $game->achievementPercentage . '" />';
                         } else {
                             $string .= '<div class="empty_game_box"></div>';
                         }
                         $string .= '</div>';
-                        echo $string;
+                        // We need to append the actual box now that we know whether the game has been marked as beaten or not
+                        echo '<div id="game_box_'.$x.'" class="game_box' . $beaten . '">' . $string;
                     }
                     ?>
                 </div>
@@ -157,8 +175,15 @@ class WebSite
 
                         // Games that are in the "to beat" list need the disabled CSS class which this adds
                         $disabled = '';
+                        if($gameObject->gameStatus == 1) {
+                            $disabled .= ' beaten';
+                        }
                         if($gameObject->gameSlot) {
-                            $disabled = ' disabled';
+                            $disabled .= ' disabled';
+                        }
+
+                        if($gameObject->gameStatus == 2) {
+                            $disabled = ' blacklisted';
                         }
 
                         // If the game has neither a logo nor a icon, it's probably a test app not meant to be played ( e.g. dota 2 test, X-Com PreOrder Bonus )
@@ -186,6 +211,7 @@ class WebSite
                                     data-gameid="' . $gameObject->appId . '"
                                     data-minutestotal="' . $gameObject->minutesTotal . '"
                                     data-minutes2weeks="' . $gameObject->minutes2Weeks . '"
+                                    data-status="' . $gameObject->gameStatus . '"
                                     ' . $achievements . ' />
                                  </div>';
                         }

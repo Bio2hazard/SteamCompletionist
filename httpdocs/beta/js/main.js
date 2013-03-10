@@ -144,11 +144,18 @@ $.fn.setListDrop = function () {
         drop: function (event, ui) {
             loadData('savegameslot', ui.draggable[0].id, this.id.substr(9));
             var gameid = $(this).find('.game_image').attr('data-gameid');
+            var status = $(ui.draggable).find('.game_image').attr('data-status');
+
             if (gameid) {
                 $('.list_boxes').find('#' + gameid).draggable('enable').on('click', '.game_image', addInfoCard);
             }
             $(ui.draggable).infoCardHardDisable();
             $(this).html(ui.draggable[0].innerHTML);
+            if(status === '1') {
+                $(this).addClass('beaten');
+            } else {
+                $(this).removeClass('beaten');
+            }
             $(ui.draggable).draggable('disable');
             $(ui.draggable).draggable('option', 'revertDuration', 0);
             $(ui.draggable).off('click', '.game_image', addInfoCard);
@@ -192,12 +199,16 @@ $.fn.setGameBoxDrop = function () {
         tolerance: 'pointer',
         drop: function (event, ui) {
             var gameid = $(ui.draggable).find('.game_image').attr('data-gameid');
+            var status = $(ui.draggable).find('.game_image').attr('data-status');
             loadData('savegameslot', gameid, 0);
             $('.list_boxes').find('#' + gameid).draggable('enable').on('click', '.game_image', addInfoCard);
             $(ui.draggable).data('delete', '1');
             $(ui.draggable).draggable('option', 'revertDuration', 0);
             $(ui.draggable).empty();
             $(ui.draggable).append('<div class="empty_game_box"></div>');
+            if(status === '1') {
+                $(ui.draggable).removeClass('beaten');
+            }
             $('.pin').button('enable');
             $(ui.draggable).stop().animate({
                 height: '69',
@@ -334,8 +345,13 @@ $.fn.activeInfoCard = function () {
     "use strict";
     this.each(function () {
         var gameid = $(this).attr('data-gameid');
+        var status = $(this).attr('data-status');
 
-        $(this).parent().append('<button class="act_btn unpin">Remove from my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Mark game as beat</button><button class="act_btn blacklist">Blacklist this game</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div>');
+        if(status === '1') {
+            $(this).parent().append('<button class="act_btn unpin">Remove from my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Game is already marked as beat</button><button class="act_btn blacklist">Game is already marked as beat</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div>');
+        } else {
+            $(this).parent().append('<button class="act_btn unpin">Remove from my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Mark game as beat</button><button class="act_btn blacklist">Blacklist this game</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div>');
+        }
 
         $(this).siblings('.unpin').button({
             icons: {
@@ -344,6 +360,7 @@ $.fn.activeInfoCard = function () {
             text: false
         }).click(function () {
             var gameid = $(this).siblings('.game_image').attr('data-gameid');
+            var status = $(this).siblings('.game_image').attr('data-status');
             var parent = $(this).parent();
             loadData('savegameslot', gameid, 0);
             $('.list_boxes').find('#' + gameid).draggable('enable').on('click', '.game_image', addInfoCard);
@@ -358,6 +375,9 @@ $.fn.activeInfoCard = function () {
             });
             parent.draggable('destroy');
             parent.setListDrop();
+            if(status === '1') {
+                parent.removeClass('beaten');
+            }
         });
 
         $(this).siblings('.blacklist').button({
@@ -365,6 +385,22 @@ $.fn.activeInfoCard = function () {
                 primary: "ui-icon-closethick"
             },
             text: false
+        }).click(function () {
+                var gameid = $(this).siblings('.game_image').attr('data-gameid');
+                var parent = $(this).parent();
+                loadData('savegamestatus', gameid, 2);
+                $('.list_boxes').find('#' + gameid).removeClass('ui-state-disabled').addClass('blacklisted').on('click', '.game_image', addInfoCard).children('.game_image').attr('data-status', '2');
+                parent.empty();
+                parent.append('<div class="empty_game_box"></div>');
+                $('.pin').button('enable');
+                parent.stop().animate({
+                    height: '69',
+                    marginBottom: '2em'
+                }, 400, function () {
+                    parent.removeClass('game_box_active');
+                });
+                parent.draggable('destroy');
+                parent.setListDrop();
         });
 
         $(this).siblings('.beat').button({
@@ -372,7 +408,28 @@ $.fn.activeInfoCard = function () {
                 primary: "ui-icon-check"
             },
             text: false
-        });
+        }).click(function () {
+                var gameid = $(this).siblings('.game_image').attr('data-gameid');
+                var parent = $(this).parent();
+                loadData('savegamestatus', gameid, 1);
+                $('.list_boxes').find('#' + gameid).draggable('enable').addClass('beaten').on('click', '.game_image', addInfoCard).children('.game_image').attr('data-status', '1');
+                parent.empty();
+                parent.append('<div class="empty_game_box"></div>');
+                $('.pin').button('enable');
+                parent.stop().animate({
+                    height: '69',
+                    marginBottom: '2em'
+                }, 400, function () {
+                    parent.removeClass('game_box_active');
+                });
+                parent.draggable('destroy');
+                parent.setListDrop();
+            });
+
+        if(status === '1') {
+            $(this).siblings('.blacklist').button('disable');
+            $(this).siblings('.beat').button('disable').addClass('ui-state-focus');
+        }
 
         $(this).siblings('.play')
             .button({
@@ -423,9 +480,16 @@ function addInfoCard() {
         $(this).infoCardDisable();
 
         var gameid = $(this).attr('data-gameid');
+        var status = $(this).attr('data-status');
 
-        $(this).parent().append('<button class="act_btn pin">Add to my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Mark game as beat</button><button class="act_btn blacklist">Blacklist this game</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div>');
-
+        // Blacklisted game:
+        if(status === '2') {
+            $(this).parent().append('<button class="act_btn pin">Cannot add a blacklisted game</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Mark game as beat</button><button class="act_btn blacklist">Un-Blacklist this game</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div>');
+        } else if (status === '1') {
+            $(this).parent().append('<button class="act_btn pin">Add to my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Game is already marked as beat</button><button class="act_btn blacklist">Game is already marked as beat</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div>');
+        } else {
+            $(this).parent().append('<button class="act_btn pin">Add to my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Mark game as beat</button><button class="act_btn blacklist">Blacklist this game</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div>');
+        }
         $(this).siblings('.pin').button({
             icons: {
                 primary: "ui-icon-pin-s"
@@ -437,6 +501,9 @@ function addInfoCard() {
             loadData('savegameslot', game.children('.game_image').attr('data-gameid'), target_slot.attr('id').substr(9));
             game.infoCardHardDisable();
             target_slot.html(game.html());
+            if(status === '1') {
+                target_slot.addClass('beaten');
+            }
             game.draggable('disable');
             game.off('click', '.game_image', addInfoCard);
             target_slot.setGameBoxDrag();
@@ -453,6 +520,26 @@ function addInfoCard() {
                 primary: "ui-icon-closethick"
             },
             text: false
+        }).click(function () {
+            var game = $(this).parent();
+            if(status === '2') {
+                // Un-Blacklist
+                loadData('savegamestatus', gameid, 0);
+                game.children('.game_image').attr('data-status', 0);
+                game.draggable('enable');
+                game.removeClass('blacklisted');
+                game.infoCardHardDisable();
+                game.children('.game_image').trigger('click');
+            } else {
+                // Blacklist
+                loadData('savegamestatus', gameid, 2);
+                game.children('.game_image').attr('data-status', 2);
+                game.draggable('disable');
+                game.addClass('blacklisted');
+                game.removeClass('ui-state-disabled');
+                game.infoCardHardDisable();
+                game.children('.game_image').trigger('click');
+            }
         });
 
         $(this).siblings('.beat').button({
@@ -460,7 +547,26 @@ function addInfoCard() {
                 primary: "ui-icon-check"
             },
             text: false
+        }).click(function () {
+            var game = $(this).parent();
+            loadData('savegamestatus', gameid, 1);
+            game.children('.game_image').attr('data-status', 1);
+            game.draggable('enable');
+            game.removeClass('blacklisted');
+            game.addClass('beaten');
+            game.removeClass('ui-state-disabled');
+            game.infoCardHardDisable();
+            game.children('.game_image').trigger('click');
         });
+
+        if(status === '1') {
+            $(this).siblings('.blacklist').button('disable');
+            $(this).siblings('.beat').button('disable').addClass('ui-state-focus');
+        } else if (status === '2') {
+            $(this).siblings('.pin').button('disable');
+            $(this).siblings('.blacklist').addClass('ui-state-focus');
+        }
+
 
         $(this).siblings('.play')
             .button({
@@ -557,7 +663,9 @@ $(document).ready(function () {
     
     // Disables dragging on list_box elements that are already in the "to beat" list
     $('.list_box.disabled').draggable('disable').removeClass('disabled');
-    
+
+    $('.list_box.blacklisted').draggable('disable').removeClass('ui-state-disabled');
+
     // Makes the "to beat" boxes droppable
     $('.game_box').setListDrop();
 
@@ -583,5 +691,5 @@ $(document).ready(function () {
     }
 
     // Triggers an initial AJAX request
-    //loadData('getsteamdata');
+    loadData('getsteamdata');
 });

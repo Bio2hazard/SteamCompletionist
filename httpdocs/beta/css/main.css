@@ -199,7 +199,7 @@ div.empty_game_box:after {
 }
 
 /* .over is used by the main.js file to change the border-color of a "to beat" game box when a eligible game is dragged over it */
-.over {
+div.over {
     border: 3px double #8bc53f;
     color: #8bc53f;
 }
@@ -249,15 +249,20 @@ div.list_box > img.game_image {
     z-index:1;   
 }
 
-/* .list_box_locked is currently not used, but intended to be used by blacklisted games */
-.list_box_locked {
-    margin: 1em;
-    display:inline-block;
-    width: 184px; 
-    height: 69px;
-    border: 3px #62a7e3 solid;
-    border-radius: 5px;
+/* div.beat is used for games that are marked as beaten */
+div.beaten {
+    border-color: #8bc53f;
 }
+
+div.blacklisted {
+    border-color: #c80000;
+}
+
+div.blacklisted > img.game_image {
+    opacity: .35;
+    filter:Alpha(Opacity=35);
+}
+
 
 /* .percent_box is used for the percent display in active info cards as well as the games in the "to beat" list */
 .percent_box {
@@ -291,7 +296,7 @@ div.list_box > img.game_image {
 
 /* .blacklist is the right-most button in the info panel */
 .blacklist {
-    margin-right: 5px;    
+    margin-right: 5px;
 }
 
 /* .achiev_bar is used for the achievement progress bar */

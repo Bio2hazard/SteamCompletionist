@@ -24,7 +24,7 @@ class SteamGame
     /** @var Util $util */
     private $util;
 
-    public $appId, $name, $minutesTotal, $minutes2Weeks, $minutesStored, $gameSlot, $achievementPercentage, $logoHash, $iconHash, $community, $status;
+    public $appId, $name, $minutesTotal, $minutes2Weeks, $minutesStored, $gameSlot, $achievementPercentage, $logoHash, $iconHash, $community, $gameStatus;
 
     /**
      * Constructor
@@ -39,12 +39,13 @@ class SteamGame
      * @param $minutes2Weeks
      * @param $minutesStored
      * @param $gameSlot
+     * @param $gameStatus
      * @param $achievementPercentage
      * @param $logoHash
      * @param $iconHash
      * @param $community
      */
-    public function __construct($appId, $config, DatabaseInterface $db, LoggerInterface $logger, Util $util, $name, $minutesTotal, $minutes2Weeks, $minutesStored, $gameSlot, $achievementPercentage, $logoHash, $iconHash, $community)
+    public function __construct($appId, $config, DatabaseInterface $db, LoggerInterface $logger, Util $util, $name, $minutesTotal, $minutes2Weeks, $minutesStored, $gameSlot, $gameStatus, $achievementPercentage, $logoHash, $iconHash, $community)
     {
         $this->appId = $appId;
         $this->config = $config;
@@ -56,6 +57,7 @@ class SteamGame
         $this->minutes2Weeks = $minutes2Weeks;
         $this->minutesStored = $minutesStored;
         $this->gameSlot = $gameSlot;
+        $this->gameStatus = $gameStatus;
         $this->achievementPercentage = $achievementPercentage;
         $this->logoHash = $logoHash;
         $this->iconHash = $iconHash;

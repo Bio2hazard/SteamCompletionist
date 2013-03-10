@@ -78,7 +78,13 @@ class SteamUser
     {
         $returnArray = array();
         foreach($this->games as $game) {
-            $returnArray[$game->appId] = array('name' => $game->name, 'minutestotal' => $game->minutesTotal, 'minutes2weeks' => $game->minutes2Weeks, 'achievper' => $game->achievementPercentage);
+            if($game->logoHash || $game->iconHash) {
+                if($game->community) {
+                    $returnArray[$game->appId] = array('name' => $game->name, 'minutestotal' => $game->minutesTotal, 'minutes2weeks' => $game->minutes2Weeks, 'achievper' => $game->achievementPercentage);
+                } else {
+                    $returnArray[$game->appId] = array('name' => $game->name, 'minutestotal' => $game->minutesTotal, 'minutes2weeks' => $game->minutes2Weeks);
+                }
+            }
         }
         return $returnArray;
     }
@@ -111,6 +117,37 @@ class SteamUser
     }
 
     /**
+     * Updates the status of a game
+     *
+     * @param $appId
+     * @param $status
+     * @throws \Exception
+     */
+    public function setStatus($appId, $status)
+    {
+        if(!isset($this->games[$appId])) {
+            throw new Exception('Can\'t change status for game ' . $appId . ' as you do not own it.');
+        }
+
+        /** @var SteamGame $game */
+        $game = $this->games[$appId];
+        if($game && $game->gameStatus != 1) {
+
+            if($game->gameSlot) {
+                $this->setSlot($appId, 0);
+            }
+
+            $this->db->prepare('UPDATE `ownedGamesDB` SET `gameStatus` = ? WHERE `steamid` = ? AND `appid` = ?');
+            $this->db->execute(array($status, $this->steamId, $game->appId), 'isi');
+
+            $game->gameStatus = $status;
+
+        } else {
+            throw new Exception('Can\'t change status of a beaten game.');
+        }
+    }
+
+    /**
      * Updates the slot a game is in and awards points if eligible.
      *
      * @param $appId
@@ -126,7 +163,7 @@ class SteamUser
         /** @var SteamGame $game */
         $game = $this->games[$appId];
         $removedGame = false;
-        if($game && $game->status != 2) {
+        if($game && $game->gameStatus != 2) {
             if($slot == 0) {
                 $this->db->prepare('UPDATE `ownedGamesDB` SET `gameSlot` = null, `minutesTotalStored` = 0 WHERE `steamid` = ? AND `appid` = ?');
                 $this->db->execute(array($this->steamId, $game->appId), 'si');
@@ -275,9 +312,34 @@ class SteamUser
         }
     }
 
+    /**
+     * Loads a single game
+     *
+     * @param int $gameId ID of the game to load
+     * @return bool true if account owns game : false if account does not own the game in question
+     */
+    public function loadLocalGame($gameId)
+    {
+        $this->db->prepare('SELECT a.`minutesTotal`, a.`minutes2Weeks`, a.`minutesTotalStored`, a.`gameSlot`, a.`gameStatus`, a.`achievPer`, b.`name`, b.`community`, b.`logo`, b.`icon` FROM `ownedGamesDB` AS a, `steamGameDB` AS b WHERE a.`appid` = b.`appid` AND a.`steamid` = ? AND a.`appid` = ?');
+        $this->db->execute(array($this->steamId, $gameId), 'si');
+        $result = $this->db->fetch();
+
+        if($result)
+        {
+            $this->games[$gameId] = new SteamGame($gameId, $this->config, $this->db, $this->logger, $this->util, $result['name'], $result['minutesTotal'], $result['minutes2Weeks'], $result['minutesTotalStored'], $result['gameSlot'], $result['gameStatus'], $result['achievPer'], $result['logo'], $result['icon'], $result['community']);
+            if($result['gameSlot']) {
+                $this->slots[$result['gameSlot']] = $gameId;
+            }
+            return true;
+        } else {
+            return false;
+        }
+
+    }
+
     public function loadLocalGames()
     {
-        $this->db->prepare('SELECT a.`appid`, a.`minutesTotal`, a.`minutes2Weeks`, a.`minutesTotalStored`, a.`gameSlot`, a.`achievPer`, b.`name`, b.`community`, b.`logo`, b.`icon` FROM `ownedGamesDB` AS a, `steamGameDB` AS b WHERE a.`appid` = b.`appid` AND a.`steamid` = ? ORDER BY a.`minutes2Weeks` DESC, b.`name` ASC');
+        $this->db->prepare('SELECT a.`appid`, a.`minutesTotal`, a.`minutes2Weeks`, a.`minutesTotalStored`, a.`gameSlot`, a.`gameStatus`, a.`achievPer`, b.`name`, b.`community`, b.`logo`, b.`icon` FROM `ownedGamesDB` AS a, `steamGameDB` AS b WHERE a.`appid` = b.`appid` AND a.`steamid` = ? ORDER BY a.`minutes2Weeks` DESC, b.`name` ASC');
         $this->db->execute(array($this->steamId), 's');
         $result = $this->db->fetch();
 
@@ -285,7 +347,7 @@ class SteamUser
         {
             // Games Found
             do {
-                $this->games[$result['appid']] = new SteamGame($result['appid'], $this->config, $this->db, $this->logger, $this->util, $result['name'], $result['minutesTotal'], $result['minutes2Weeks'], $result['minutesTotalStored'], $result['gameSlot'], $result['achievPer'], $result['logo'], $result['icon'], $result['community']);
+                $this->games[$result['appid']] = new SteamGame($result['appid'], $this->config, $this->db, $this->logger, $this->util, $result['name'], $result['minutesTotal'], $result['minutes2Weeks'], $result['minutesTotalStored'], $result['gameSlot'], $result['gameStatus'], $result['achievPer'], $result['logo'], $result['icon'], $result['community']);
                 if($result['gameSlot']) {
                     $this->slots[$result['gameSlot']] = $result['appid'];
                 }
@@ -332,6 +394,7 @@ class SteamUser
                     $game['playtime_2weeks'],
                     $this->games[$game['appid']]->minutesStored,
                     $this->games[$game['appid']]->gameSlot,
+                    $this->games[$game['appid']]->gameStatus,
                     $this->games[$game['appid']]->achievementPercentage,
                     $game['img_logo_url'],
                     $game['img_icon_url'],
@@ -347,6 +410,7 @@ class SteamUser
                     $game['playtime_2weeks'],
                     0,
                     null,
+                    0,
                     0,
                     $game['img_logo_url'],
                     $game['img_icon_url'],
