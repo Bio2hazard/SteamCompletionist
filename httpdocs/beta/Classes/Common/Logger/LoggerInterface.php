@@ -10,6 +10,20 @@ namespace Classes\Common\Logger;
 interface LoggerInterface
 {
 
+
+    /**
+     * Sets the loggers userId.
+     *
+     * @param int $userId
+     */
+    public function setUser($userId);
+
+    /**
+     * Sets the loggers IP.
+     * @param string $ip
+     */
+    public function setIP($ip);
+
     /**
      * Writes $message as a entry into the log.
      *
@@ -19,4 +33,13 @@ interface LoggerInterface
      * @return bool true if log entry succeeded, false if logging is not enabled
      */
     public function addEntry($message, $timestamp = true);
+
+    /**
+     * Writes a login / logout message into a login / logout database
+     *
+     * @param int $type The type of action performed ( 1 = login, 2 = logout )
+     *
+     * @return bool true if log entry succeeded, false if user logging is not enabled
+     */
+    public function loginOutEntry($type);
 }

@@ -14,7 +14,8 @@ class AutoLoader
     /**
      * Constructor.
      */
-    public function __construct() {
+    public function __construct()
+    {
         spl_autoload_register(array($this, 'load'));
     }
 
@@ -29,15 +30,15 @@ class AutoLoader
     private function load($className)
     {
         $className = ltrim($className, '\\');
-        $fileName  = '';
+        $fileName = '';
         $lastNsPos = strrpos($className, '\\');
         if ($lastNsPos) {
             $namespace = substr($className, 0, $lastNsPos);
             $className = substr($className, $lastNsPos + 1);
-            $fileName  = str_replace('\\', DIRECTORY_SEPARATOR, $namespace) . DIRECTORY_SEPARATOR;
+            $fileName = str_replace('\\', DIRECTORY_SEPARATOR, $namespace) . DIRECTORY_SEPARATOR;
         }
         $fileName .= str_replace('_', DIRECTORY_SEPARATOR, $className) . '.php';
-        if(!@include $fileName) {
+        if (!@include $fileName) {
             throw new Exception('AutoLoader failed to load "' . $fileName . '"');
         }
     }

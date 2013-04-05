@@ -3,21 +3,52 @@
 namespace Classes\Common\User;
 
 use Classes\Common\Database\DatabaseInterface;
-
+use Classes\Common\Logger\LoggerInterface;
 /**
  * User provides a set of functions for the authentication of a user.
  *
- * @todo: Add optional logger support
  * @author Felix Kastner <felix@chapterfain.com>
  */
 class User
 {
+    /**
+     * The userId of the client; Defaults to 0 for "not logged in".
+     * @var int
+     */
+    public $userId = 0;
 
-    public $userId = 0, $session, $cookie;
-    private $config, $server;
+    /**
+     * The $_SESSION array gets passed to and stored in the User class so that it can be injected for testing.
+     * @var array
+     */
+    public $session;
+
+    /**
+     * The $_COOKIE array gets passed to and stored in the User class so that it can be injected for testing.
+     * @var array
+     */
+    public $cookie;
+
+    /**
+     * Holds a array of configuration values used by the User class.
+     * @var array
+     */
+    private $config;
+
+    /**
+     * The $_SERVER array gets passed to and stored in the User class so that it can be injected for testing.
+     * @var array
+     */
+    private $server;
 
     /** @var DatabaseInterface $db */
     private $db;
+
+    /**
+     * The logger, used to log debug messages.
+     * @var LoggerInterface $logger
+     */
+    private $logger;
 
     /**
      * Constructor. Calls checkLogin()
@@ -27,14 +58,16 @@ class User
      * @param array $session        Injected $_SESSION array
      * @param array $cookie         Injected $_COOKIES array
      * @param DatabaseInterface $db Database interface
+     * @param LoggerInterface $logger Logger interface
      */
-    public function __construct($config, $server, $session, $cookie, DatabaseInterface $db)
+    public function __construct($config, $server, $session, $cookie, DatabaseInterface $db, LoggerInterface $logger)
     {
         $this->config = $config;
         $this->server = $server;
         $this->session = $session;
         $this->cookie = $cookie;
         $this->db = $db;
+        $this->logger = $logger;
 
         $this->checkLogin();
     }
@@ -49,6 +82,9 @@ class User
         $this->userId = $userid;
         $this->createSession();
         $this->createCookie();
+        $this->logger->setUser($this->userId);
+        $this->logger->setIP($this->server['REMOTE_ADDR']);
+        $this->logger->loginOutEntry(1);
     }
 
     /**
@@ -58,6 +94,7 @@ class User
     {
         $this->userId = 0;
         $this->createSession();
+        $this->logger->loginOutEntry(2);
     }
 
     /**
@@ -67,8 +104,7 @@ class User
      */
     public function loggedIn()
     {
-        if($this->userId)
-        {
+        if ($this->userId) {
             return true;
         } else {
             return false;
@@ -81,11 +117,11 @@ class User
      */
     private function checkLogin()
     {
-        if($this->verifySession()) {
+        if ($this->verifySession()) {
             $this->userId = $this->session['id'];
         }
-        if($this->userId === 0) {
-            if($this->verifyCookie()) {
+        if ($this->userId === 0) {
+            if ($this->verifyCookie()) {
                 $this->userId = $this->cookie['userid'];
                 $this->createSession();
             }
@@ -102,7 +138,7 @@ class User
         $this->session = array();
         $this->session['legit'] = $this->sessionHash();
         $this->session['id'] = $this->userId;
-        if(!$this->userId) {
+        if (!$this->userId) {
             $this->voidCookie();
         }
     }
@@ -125,13 +161,14 @@ class User
     /**
      * Removes the cookies
      */
-    private function voidCookie() {
-        if(isset($this->cookie['auth'])) {
-            setcookie('auth', '', time()-3600);
+    private function voidCookie()
+    {
+        if (isset($this->cookie['auth'])) {
+            setcookie('auth', '', time() - 3600);
             unset($this->cookie['auth']);
         }
-        if(isset($this->cookie['userid'])) {
-            setcookie('userid', '', time()-3600);
+        if (isset($this->cookie['userid'])) {
+            setcookie('userid', '', time() - 3600);
             unset($this->cookie['userid']);
         }
     }
@@ -141,8 +178,9 @@ class User
      *
      * @return bool true = cookie is valid; false = cookie is invalid
      */
-    private function verifyCookie() {
-        if(isset($this->cookie['auth'])
+    private function verifyCookie()
+    {
+        if (isset($this->cookie['auth'])
             && isset($this->cookie['userid'])
             && !empty($this->cookie['auth'])
             && !empty($this->cookie['userid'])
@@ -152,13 +190,13 @@ class User
             $this->db->execute(array($this->cookie['userid']), 's');
             $result = $this->db->fetch();
 
-            if(!$result) {
+            if (!$result) {
                 return false;
             }
 
             $dbHash = hash('sha256', $result['authSalt'] . $this->cookie['userid']);
 
-            if($dbHash === $this->cookie['auth']) {
+            if ($dbHash === $this->cookie['auth']) {
                 return true;
             }
         }
@@ -170,8 +208,9 @@ class User
      *
      * @return bool true = session is valid; false = session is invalid
      */
-    private function verifySession() {
-        if((isset($this->session['id']))
+    private function verifySession()
+    {
+        if ((isset($this->session['id']))
             && (is_numeric($this->session['id']))
             && (isset($this->session['legit']))
             && ($this->session['legit'] === $this->sessionHash())
@@ -186,11 +225,12 @@ class User
      *
      * @return string
      */
-    private function sessionHash() {
+    private function sessionHash()
+    {
         $hash = $this->config['safeword'];
         $hash .= $this->server['HTTP_USER_AGENT'];
         $ipBlocks = explode('.', $this->server['REMOTE_ADDR']);
-        for($i = 0; $i < $this->config['ipcheck']; $i++) {
+        for ($i = 0; $i < $this->config['ipcheck']; $i++) {
             $hash .= $ipBlocks[$i];
         }
         return md5($hash);

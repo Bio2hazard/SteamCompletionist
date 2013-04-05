@@ -7,7 +7,7 @@
 /* HTML5 tags */
 header, section, footer,
 aside, nav, article, figure {
-	display: block;
+    display: block;
 }
 
 /* Tag defaults */
@@ -16,13 +16,13 @@ html {
 }
 
 body {
-    font-family:Arial, Helvetica, Verdana, sans-serif;
+    font-family: Arial, Helvetica, Verdana, sans-serif;
     font-size: 0.75em;
     background-color: #2d2d2b;
     color: #939393;
     text-align: center;
     margin: 0;
-    padding: 0;    
+    padding: 0;
     height: 100%;
     overflow: hidden;
 }
@@ -34,13 +34,13 @@ footer {
 }
 
 a, a:hover, a:active, a:visited {
-	color: #ebebeb;
-	text-decoration: none;
+    color: #ebebeb;
+    text-decoration: none;
 }
 
 a:hover {
-	text-decoration: underline;
-	color: #FFFFFF;
+    text-decoration: underline;
+    color: #FFFFFF;
 }
 
 strong {
@@ -54,6 +54,7 @@ h1 {
 h2 {
     font-size: 1.6em;
 }
+
 /* Classes */
 
 /* .webtitle is used for the website's title */
@@ -64,8 +65,8 @@ h1.webtitle {
 /* .beattag is used for the "Beat these games" tag */
 h2.beattag {
     text-align: left;
-    font-weight:bold;
-    margin-bottom:-5px;
+    font-weight: bold;
+    margin-bottom: -5px;
     padding-left: 0.6em;
 }
 
@@ -81,16 +82,16 @@ header.header {
     border-bottom-width: 1px;
     border-bottom-color: #939393;
     border-bottom-style: solid;
-    width: 100%;    
+    width: 100%;
     height: 24px;
     white-space: nowrap;
-    overflow:hidden;
+    overflow: hidden;
 }
 
 /* .body encompasses the top-most bar which contains user information & the title */
 div.body {
-    clear: both; 
-    margin: 0 auto; 
+    clear: both;
+    margin: 0 auto;
     max-width: 1200px;
 }
 
@@ -123,6 +124,7 @@ span.online, img.online {
     color: #62a7e3;
     border-color: #62a7e3;
 }
+
 span.ingame, img.ingame {
     color: #8bc53f;
     border-color: #8bc53f;
@@ -135,8 +137,8 @@ header.games {
     border-bottom-width: 1px;
     border-bottom-color: #939393;
     border-bottom-style: solid;
-    
-    height:137px;
+
+    height: 137px;
     white-space: nowrap;
     overflow-y: hidden;
     overflow-x: auto;
@@ -149,17 +151,17 @@ div.game_body {
     padding: 0 1em;
 }
 
-/* .game_boxes sets up the game boxes of the "to beat" list */ 
+/* .game_boxes sets up the game boxes of the "to beat" list */
 div.game_boxes {
     text-align: center;
     display: inline-block;
 }
 
-/* .game_box sets up the individual game box of each "to beat" game */ 
+/* .game_box sets up the individual game box of each "to beat" game */
 div.game_box {
     margin: 1em 1em 2em 1em;
-    display:inline-block;
-    width: 184px; 
+    display: inline-block;
+    width: 184px;
     height: 69px;
     border: 3px #62a7e3 solid;
     border-radius: 5px;
@@ -183,7 +185,7 @@ div.empty_game_box {
     font-size: 1.4em;
     white-space: normal;
     font-weight: bold;
-    padding-top:15px;
+    padding-top: 15px;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     -khtml-user-select: none;
@@ -226,11 +228,11 @@ div.list_body {
     -ms-user-select: none;
 }
 
-/* .list_box sets up the individual game box of each game in the main list */ 
+/* .list_box sets up the individual game box of each game in the main list */
 div.list_box {
     margin: 1em 1em 2em 1em;
-    display:inline-block;
-    width: 184px; 
+    display: inline-block;
+    width: 184px;
     height: 69px;
     border: 3px #62a7e3 solid;
     border-radius: 5px;
@@ -246,7 +248,7 @@ div.list_box > img.game_image {
 /* .list_box_active is used for games in the main list that have a active info box */
 .list_box_active {
     position: relative;
-    z-index:1;   
+    z-index: 1;
 }
 
 /* div.beat is used for games that are marked as beaten */
@@ -260,9 +262,8 @@ div.blacklisted {
 
 div.blacklisted > img.game_image {
     opacity: .35;
-    filter:Alpha(Opacity=35);
+    filter: Alpha(Opacity=35);
 }
-
 
 /* .percent_box is used for the percent display in active info cards as well as the games in the "to beat" list */
 .percent_box {
@@ -280,6 +281,39 @@ div.blacklisted > img.game_image {
     cursor: pointer;
 }
 
+.stat_box {
+    position: absolute;
+    right: 0;
+    top: 57px;
+    background-color: rgba(0, 0, 0, 0.8);
+    height: 10px;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    cursor: pointer;
+    padding-top: 2px;
+    padding-left: 5px;
+    padding-right: 3px;
+    border-top-left-radius: 10px;
+    font-weight: bold;
+    font-size: 0.9em;
+    font-family: Verdana;
+}
+
+span.stat_owned {
+    color: #62a7e3;
+}
+
+span.stat_beaten {
+    color: #8bc53f;
+}
+
+span.stat_blacklisted {
+    color: #c80000;
+}
+
 /* .act_btn is used by all the buttons in the info panels */
 .act_btn {
     margin-top: 3px;
@@ -291,7 +325,7 @@ div.blacklisted > img.game_image {
 
 /* .pin and .unpin is the left-most button in the info panel */
 .pin, .unpin {
-    margin-left: 5px;   
+    margin-left: 5px;
 }
 
 /* .blacklist is the right-most button in the info panel */
@@ -321,7 +355,7 @@ div.blacklisted > img.game_image {
 /* .loader is the indicator used to show AJAX activity */
 p.loader {
     float: left;
-    font-family:Arial, Helvetica, Verdana, sans-serif;
+    font-family: Arial, Helvetica, Verdana, sans-serif;
     display: none;
     vertical-align: text-top;
     padding-right: 15px;
@@ -339,6 +373,17 @@ button.topbutton {
     max-height: 30px;
     margin-right: 5px;
     margin-top: 4px;
+}
+
+
+
+div.login > button.topbutton {
+    margin-top: -3px;
+    float:left;
+}
+
+div.loginsteam {
+    float:left;
 }
 
 /* .fader is used to highlight the possible drop zones while user is drag & dropping */
@@ -362,13 +407,20 @@ div.fader {
 /* custom class to use with jQuery UI's tooltips */
 .custom_ttip {
     padding: 5px;
-    max-width:250px;
+    max-width: 250px;
     font-size: 1.3em;
 }
 
 /* General classes not currently used */
-img.right, figure.right {float: right; margin: 0 0 2em 2em;}
-img.left, figure.left {float: right; margin: 0 0 2em 2em;}
+img.right, figure.right {
+    float: right;
+    margin: 0 0 2em 2em;
+}
+
+img.left, figure.left {
+    float: right;
+    margin: 0 0 2em 2em;
+}
 
 /* jQuery UI overrides */
 
@@ -379,12 +431,12 @@ img.left, figure.left {float: right; margin: 0 0 2em 2em;}
 
 /* changes the default jQuery UI progress bar */
 .ui-progressbar .ui-progressbar-value {
-    background: rgb(200,0,0);
+    background: rgb(200, 0, 0);
     background-image: url(../img/pbar.png);
     background-size: 28px 22px;
     text-align: center;
-    padding-top:4px;
-    overflow:hidden;
+    padding-top: 4px;
+    overflow: hidden;
     border-radius: 0;
 }
 
@@ -394,7 +446,7 @@ img.left, figure.left {float: right; margin: 0 0 2em 2em;}
     top: 1px;
     background: rgba(255, 255, 255, 0.6);
     border-top-style: none;
-    overflow:hidden;
+    overflow: hidden;
     border-radius: 4px;
     cursor: pointer;
 }
@@ -406,20 +458,31 @@ img.left, figure.left {float: right; margin: 0 0 2em 2em;}
 }
 
 .state-content {
-    text-align: left; 
+    text-align: left;
     padding: 6px 5px;
 }
 
 .state-title-icon {
     display: inline-block;
     margin-right: 4px;
-    padding-bottom:1px;
+    padding-bottom: 1px;
     vertical-align: text-bottom;
 }
 
 .private {
     line-height: 1.3;
-    padding-top:5px;
+    padding-top: 5px;
+}
+
+button.focus {
+    border: 1px solid #59b4d4;
+    background: #0078a3 url(images/ui-bg_glass_40_0078a3_1x400.png) 50% 50% repeat-x;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+button.focus > span.ui-icon {
+    background-image: url(images/ui-icons_ffffff_256x240.png);
 }
 
 /* Positions the user data to the right of the top-most bar */
@@ -427,6 +490,60 @@ img.left, figure.left {float: right; margin: 0 0 2em 2em;}
     float: right;
 }
 
-#error {
+#error, #terms, #settings {
     display: none;
+}
+
+.terms {
+    color: #939393;
+    text-align: left;
+}
+
+#numgamesslider {
+    margin-top: 5px;
+}
+
+.settings {
+    color: #939393;
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+.cookielaw {
+    width: 300px;
+    float:right;
+
+    position: relative;
+    border: 2px solid #8bc53f;
+
+    white-space:normal;
+    top:-12px;
+    left:15px;
+    padding:3px;
+    display:inline-block;
+    vertical-align: top;
+}
+
+.cookielaw:after, .cookielaw:before {
+    right: 100%;
+    border: solid transparent;
+    content: " ";
+    height: 0;
+    width: 0;
+    position: absolute;
+}
+
+.cookielaw:after {
+    border-color: rgba(45, 45, 43, 0);
+    border-right-color: #2d2d2b;
+    border-width: 10px;
+    top: 50%;
+    margin-top: -10px;
+}
+.cookielaw:before {
+    border-color: rgba(139, 197, 63, 0);
+    border-right-color: #8bc53f;
+    border-width: 13px;
+    top: 50%;
+    margin-top: -13px;
 }

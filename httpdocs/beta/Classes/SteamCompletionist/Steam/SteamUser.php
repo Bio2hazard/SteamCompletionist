@@ -8,29 +8,130 @@ use Classes\Common\Logger\LoggerInterface;
 use \Exception;
 
 /**
- * Handles all steam user account related things.
+ * Handles all Steam User related things.
  *
  * @author Felix Kastner <felix@chapterfain.com>
  */
 class SteamUser
 {
-    private $config, $steamId;
+    /**
+     * Holds a array of configuration values used by the SteamUser Class.
+     * @var array
+     */
+    private $config;
 
-    /** @var DatabaseInterface $db */
+    /**
+     * The database connection.
+     * @var DatabaseInterface $db
+     */
     private $db;
 
-    /** @var LoggerInterface $logger */
+    /**
+     * The logger, used to log debug messages.
+     * @var LoggerInterface $logger
+     */
     private $logger;
 
-    /** @var Util $util */
+    /**
+     * Utility Class.
+     * @var Util $util
+     */
     private $util;
 
-    public $personaName, $personaState, $profileUrl, $avatarHash, $points, $lastUpdate, $profileState;
+    /**
+     * The steamId of the Steam User.
+     * @var string
+     */
+    public $steamId;
 
+    /**
+     * The display name of the Steam User.
+     * @var string
+     */
+    public $personaName;
+
+    /**
+     * The status of the Steam User, see $statusString.
+     * @var int
+     */
+    public $personaState;
+
+    /**
+     * URL to the Steam User's profile page.
+     * @var string
+     */
+    public $profileUrl;
+
+    /**
+     * Hash string of the Steam User's avatar to display it from the steam servers.
+     * @var string
+     */
+    public $avatarHash;
+
+    /**
+     * The amount of points this Steam User has.
+     * @var int
+     */
+    public $points;
+
+    /**
+     * Number of seconds since this Steam User was last updated from the steam servers.
+     * @var int
+     */
+    public $lastUpdate;
+
+    /**
+     * The privacy state of the Steam User's profile. We need this to be 3 ( public ).
+     * @var int
+     */
+    public $profileState;
+
+    /**
+     * Number of "to beat" slots for this Steam User.
+     * @var int
+     */
+    public $toBeatNum = 5;
+
+    /**
+     * Toggle whether beaten games are considered for adding a random game to the "to beat" list.
+     * @var int
+     */
+    public $considerBeaten = 0;
+
+    /**
+     * Toggle whether the quick stats are shown or not.
+     * @var int
+     */
+    public $hideQuickStats = 0;
+
+    /**
+     * Name of the game the Steam User is currently playing.
+     * @var string
+     */
+    public $gameName = '';
+
+    /**
+     * Array that holds all Steam Games that this Steam User owns.
+     * @var array
+     */
     public $games = array();
+
+    /**
+     * Array that holds the appIDs of the games in the "to beat" slots.
+     * @var array
+     */
     public $slots = array();
+
+    /**
+     * Array that holds the appIDs of games that are no longer part of this Steam User and thus need to be removed ( free weekends ).
+     * @var array
+     */
     public $deleteList = array();
 
+    /**
+     * Array that maps to $personaState. Used to display the status.
+     * @var array
+     */
     private $statusString = array(
         0 => 'Offline',
         1 => 'Online',
@@ -39,8 +140,13 @@ class SteamUser
         4 => 'Snooze',
         5 => 'Looking to Trade',
         6 => 'Looking to Play',
+        99 => 'In-Game: ',
     );
 
+    /**
+     * Array that maps to $personaState. Used to apply a different class to the status box depending on $personaState.
+     * @var array
+     */
     private $statusClass = array(
         0 => '',
         1 => ' online',
@@ -49,6 +155,7 @@ class SteamUser
         4 => ' online',
         5 => ' online',
         6 => ' online',
+        99 => ' ingame',
     );
 
     /**
@@ -70,19 +177,27 @@ class SteamUser
     }
 
     /**
-     * Gets list of games for AJAX request
+     * Gets list of games for AJAX request.
      *
      * @return array
      */
     public function getGameData()
     {
         $returnArray = array();
-        foreach($this->games as $game) {
-            if($game->logoHash || $game->iconHash) {
-                if($game->community) {
-                    $returnArray[$game->appId] = array('name' => $game->name, 'minutestotal' => $game->minutesTotal, 'minutes2weeks' => $game->minutes2Weeks, 'achievper' => $game->achievementPercentage);
+        foreach ($this->games as $game) {
+
+            /** @var SteamGame $game */
+
+            if ($game->logoHash || $game->iconHash) {
+                if ($game->logoHash) {
+                    $logo = $game->logoHash;
                 } else {
-                    $returnArray[$game->appId] = array('name' => $game->name, 'minutestotal' => $game->minutesTotal, 'minutes2weeks' => $game->minutes2Weeks);
+                    $logo = $game->iconHash;
+                }
+                if ($game->community) {
+                    $returnArray[$game->appId] = array('appid' => $game->appId, 'name' => $game->name, 'minutestotal' => $game->minutesTotal, 'minutes2weeks' => $game->minutes2Weeks, 'achievper' => $game->achievementPercentage, 'imagehash' => $logo, 'numowned' => $game->numOwned, 'numbeaten' => $game->numBeaten, 'numblacklisted' => $game->numBlacklisted);
+                } else {
+                    $returnArray[$game->appId] = array('appid' => $game->appId, 'name' => $game->name, 'minutestotal' => $game->minutesTotal, 'minutes2weeks' => $game->minutes2Weeks, 'imagehash' => $logo, 'numowned' => $game->numOwned, 'numbeaten' => $game->numBeaten, 'numblacklisted' => $game->numBlacklisted);
                 }
             }
         }
@@ -90,34 +205,89 @@ class SteamUser
     }
 
     /**
-     * Gets list of games to delete for AJAX request
+     * Gets list of games to delete for AJAX request.
      *
      * @return array
      */
     public function getDeleteList()
     {
         $returnArray = array();
-        foreach($this->deleteList as $game) {
-            $returnArray[$game->appId] = array();
+        foreach ($this->deleteList as $game) {
+            $returnArray[$game->appId] = array('appid' => $game->appId);
         }
         return $returnArray;
     }
 
     /**
-     * Gets user data for AJAX request
+     * Returns basic Steam User data in a array.
      *
      * @return mixed
      */
     public function getUserData()
     {
-        $returnArray['class'] = $this->getStatusClass($this->personaState);
-        $returnArray['status'] = $this->getStatusString($this->personaState);
-        $returnArray['name'] = $this->personaName;
+        if ($this->gameName) {
+           $state = 99;
+        } else {
+            $state = $this->personaState;
+        }
+        $returnArray['class'] = $this->getStatusClass($state);
+        $returnArray['avatar'] = 'http://media.steampowered.com/steamcommunity/public/images/avatars/' . substr($this->avatarHash, 0, 2) . '/' . $this->avatarHash . '.jpg';
+        $returnArray['status'] = $this->getStatusString($state).$this->gameName;
+        $returnArray['name'] = htmlentities(stripslashes($this->personaName));
         return $returnArray;
     }
 
     /**
-     * Updates the status of a game
+     * Sets the number of "to beat" slots for the steam user.
+     *
+     * @param $numToBeat
+     */
+    public function setNumToBeat($numToBeat)
+    {
+        $oldToBeat = $this->toBeatNum;
+        $this->logger->addEntry('Setting new numToBeat. numToBeat:' . $numToBeat . ' oldToBeat:' . $oldToBeat);
+
+        if ($numToBeat < $oldToBeat) {
+            for ($x = $oldToBeat; $x > $numToBeat; $x--) {
+                if (isset($this->slots[$x])) {
+                    $this->setSlot($this->slots[$x], 0);
+                }
+            }
+        }
+
+        $this->db->prepare('UPDATE `steamUserDB` SET `toBeatNum` = ? WHERE `steamid` = ?');
+        $this->db->execute(array($numToBeat, $this->steamId), 'is');
+        $this->toBeatNum = $numToBeat;
+    }
+
+    /**
+     * Updates the considerBeaten flag for the user.
+     * considerBeaten is a toggle that makes the website consider beaten games for random game selection.
+     *
+     * @param $considerBeaten
+     */
+    public function setConsiderBeaten($considerBeaten)
+    {
+        $this->db->prepare('UPDATE `steamUserDB` SET `considerBeaten` = ? WHERE `steamid` = ?');
+        $this->db->execute(array($considerBeaten, $this->steamId), 'is');
+        $this->considerBeaten = $considerBeaten;
+    }
+
+    /**
+     * Updates the hideQuickStats flag for the user.
+     * hideQuickStats is a toggle that makes the website hide the quick stats on active unit cards.
+     *
+     * @param $hideQuickStats
+     */
+    public function setHideQuickStats($hideQuickStats)
+    {
+        $this->db->prepare('UPDATE `steamUserDB` SET `hideQuickStats` = ? WHERE `steamid` = ?');
+        $this->db->execute(array($hideQuickStats, $this->steamId), 'is');
+        $this->hideQuickStats = $hideQuickStats;
+    }
+
+    /**
+     * Updates the status of a game.
      *
      * @param $appId
      * @param $status
@@ -125,20 +295,34 @@ class SteamUser
      */
     public function setStatus($appId, $status)
     {
-        if(!isset($this->games[$appId])) {
+        if (!isset($this->games[$appId])) {
             throw new Exception('Can\'t change status for game ' . $appId . ' as you do not own it.');
         }
 
         /** @var SteamGame $game */
         $game = $this->games[$appId];
-        if($game && $game->gameStatus != 1) {
+        if ($game && $game->gameStatus != 1) {
 
-            if($game->gameSlot) {
+            if ($game->gameSlot) {
                 $this->setSlot($appId, 0);
             }
 
             $this->db->prepare('UPDATE `ownedGamesDB` SET `gameStatus` = ? WHERE `steamid` = ? AND `appid` = ?');
             $this->db->execute(array($status, $this->steamId, $game->appId), 'isi');
+
+            if ($status == 1) {
+                // Game Beaten
+                $this->db->prepare('UPDATE `steamGameDB` SET `beaten` = `beaten` + 1 WHERE `appid` = ?');
+                $this->db->execute(array($game->appId), 'i');
+            } else if ($status == 2) {
+                // Game Blacklisted
+                $this->db->prepare('UPDATE `steamGameDB` SET `blacklisted` = `blacklisted` + 1 WHERE `appid` = ?');
+                $this->db->execute(array($game->appId), 'i');
+            } else if ($game->gameStatus == 2 && $status == 0) {
+                // Game Un-Blacklisted
+                $this->db->prepare('UPDATE `steamGameDB` SET `blacklisted` = `blacklisted` - 1 WHERE `appid` = ?');
+                $this->db->execute(array($game->appId), 'i');
+            }
 
             $game->gameStatus = $status;
 
@@ -156,21 +340,20 @@ class SteamUser
      */
     public function setSlot($appId, $slot)
     {
-        if(!isset($this->games[$appId])) {
+        if (!isset($this->games[$appId])) {
             throw new Exception('Can\'t change slot for game ' . $appId . ' as you do not own it.');
         }
 
         /** @var SteamGame $game */
         $game = $this->games[$appId];
         $removedGame = false;
-        if($game && $game->gameStatus != 2) {
-            if($slot == 0) {
+        if ($game && $game->gameStatus != 2) {
+            if ($slot == 0) {
                 $this->db->prepare('UPDATE `ownedGamesDB` SET `gameSlot` = null, `minutesTotalStored` = 0 WHERE `steamid` = ? AND `appid` = ?');
                 $this->db->execute(array($this->steamId, $game->appId), 'si');
                 $removedGame = $game;
-                foreach($this->slots as $key => $value) {
-                    if($value == $game->appId)
-                    {
+                foreach ($this->slots as $key => $value) {
+                    if ($value == $game->appId) {
                         unset($this->slots[$key]);
                         break;
                     }
@@ -184,18 +367,17 @@ class SteamUser
                 $this->db->prepare('UPDATE `ownedGamesDB` SET `gameSlot` = ?, `minutesTotalStored` = minutesTotal WHERE `steamid` = ? AND `appid` = ?');
                 $this->db->execute(array($slot, $this->steamId, $game->appId), 'isi');
 
-                if(isset($this->slots[$slot]))
+                if (isset($this->slots[$slot]))
                     $removedGame = (isset($this->games[$this->slots[$slot]])) ? $this->games[$this->slots[$slot]] : false;
 
-                $this->slots[$slot] = $game;
+                $this->slots[$slot] = $game->appId;
             }
 
-            if($this->db->getAffected()) {
+            if ($this->db->getAffected()) {
                 $this->logger->addEntry('Game slot updated');
 
-                if($removedGame)
-                {
-                    $points = (int)((($removedGame->minutesTotal)-($removedGame->minutesStored)));
+                if ($removedGame) {
+                    $points = (int)((($removedGame->minutesTotal) - ($removedGame->minutesStored)));
                     $this->db->prepare('UPDATE `steamUserDB` SET `points` = `points` + ? WHERE `steamid` = ?');
                     $this->db->execute(array($points, $this->steamId), 'is');
                     $this->logger->addEntry($points . ' Points awarded for removing game ' . $removedGame->name . ' from a slot.');
@@ -210,7 +392,7 @@ class SteamUser
 
 
     /**
-     * Gets the string to use for the user's current status
+     * Gets the string to use for the user's current status.
      *
      * @param $index
      * @return mixed
@@ -221,7 +403,7 @@ class SteamUser
     }
 
     /**
-     * Gets the class to use for the user's current status
+     * Gets the class to use for the user's current status.
      *
      * @param $index
      * @return mixed
@@ -238,11 +420,11 @@ class SteamUser
     public function loadLocalUserInfo()
     {
         try {
-            $this->db->prepare('SELECT `personaname`, `personastate`, `points`, (UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(`lastUpdate`)) as `lastUpdate`, `profileurl`, `profilestate`, `avatar` FROM `steamUserDB` WHERE `steamid` = ?');
+            $this->db->prepare('SELECT `personaname`, `personastate`, `points`, (UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(`lastUpdate`)) AS `lastUpdate`, `profileurl`, `profilestate`, avatar, `toBeatNum`, `considerBeaten`, `hideQuickStats`, `gameName` FROM `steamUserDB` WHERE `steamid` = ?');
             $this->db->execute(array($this->steamId), 's');
             $result = $this->db->fetch();
 
-            if($result && $result['profilestate'] === '3') {
+            if ($result && $result['profilestate'] === '3') {
                 $this->personaName = $result['personaname'];
                 $this->personaState = $result['personastate'];
                 $this->points = $result['points'];
@@ -250,14 +432,17 @@ class SteamUser
                 $this->profileUrl = $result['profileurl'];
                 $this->profileState = $result['profilestate'];
                 $this->avatarHash = $result['avatar'];
+                $this->toBeatNum = $result['toBeatNum'];
+                $this->considerBeaten = $result['considerBeaten'];
+                $this->hideQuickStats = $result['hideQuickStats'];
+                $this->gameName = $result['gameName'];
                 $this->logger->addEntry('Grabbed userdata from local database.');
             } else {
                 $this->loadRemoteUserInfo();
             }
-        } catch(Exception $e) {
+        } catch (Exception $e) {
             throw $e;
         }
-
     }
 
     /**
@@ -267,10 +452,9 @@ class SteamUser
      */
     public function loadRemoteUserInfo()
     {
-        //$userInfo = @json_decode($this->util->file_get_contents_curl('http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=' . $this->config['key'] . '&steamids=' . $this->steamId))->response->players[0];
         $userInfo = @json_decode($this->util->file_get_contents_curl('http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=' . $this->config['key'] . '&steamids=' . $this->steamId), true)['response']['players'][0];
 
-        if(!$userInfo) {
+        if (!$userInfo) {
             throw new Exception('The steam servers failed to respond to the user info request, probably due to heavy load.');
         }
         $this->logger->addEntry('Grabbed userdata from steam servers.');
@@ -280,6 +464,11 @@ class SteamUser
         $this->profileState = $userInfo['communityvisibilitystate'];
         $this->profileUrl = substr($userInfo['profileurl'], 26);
         $this->avatarHash = substr($userInfo['avatar'], -44, -4);
+        if (isset($userInfo['gameextrainfo'])) {
+            $this->gameName = $userInfo['gameextrainfo'];
+        } else {
+            $this->gameName = '';
+        }
         $this->cacheUser();
     }
 
@@ -291,12 +480,12 @@ class SteamUser
     private function cacheUser()
     {
         try {
-            $this->db->prepare('INSERT INTO `steamUserDB` (`steamid`, `personaname`, `personastate`, `profileurl`, `avatar`, `profilestate`)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                            ON DUPLICATE KEY UPDATE `personaname` = ?, `personastate` = ?, `profileurl` = ?, `avatar` = ?, `profilestate` = ?, `lastUpdate` = now()');
-            $data = array($this->steamId, $this->personaName, $this->personaState, $this->profileUrl, $this->avatarHash, $this->profileState,
-                $this->personaName, $this->personaState, $this->profileUrl, $this->avatarHash, $this->profileState);
-            $this->db->execute($data, 'ssissisissi');
+            $this->db->prepare('INSERT INTO `steamUserDB` (`steamid`, `personaname`, `personastate`, `profileurl`, avatar, `profilestate`, `gameName`)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            ON DUPLICATE KEY UPDATE `personaname` = ?, `personastate` = ?, `profileurl` = ?, `avatar` = ?, `profilestate` = ?, `gameName` = ?, `lastUpdate` = now()');
+            $data = array($this->steamId, $this->personaName, $this->personaState, $this->profileUrl, $this->avatarHash, $this->profileState, $this->gameName,
+                $this->personaName, $this->personaState, $this->profileUrl, $this->avatarHash, $this->profileState, $this->gameName);
+            $this->db->execute($data, 'ssissississis');
             $this->logger->addEntry('Updated local userdata.');
             // Legacy implementation that involved storing the avatar locally
 
@@ -307,27 +496,26 @@ class SteamUser
 //                file_put_contents($this->avatar, $steamAvatar);
 //                $this->logger->addEntry('New local avatar created.');
 //            }
-        } catch(Exception $e) {
+        } catch (Exception $e) {
             throw $e;
         }
     }
 
     /**
-     * Loads a single game
+     * Loads a single game. Used to verify if the account owns a specific game.
      *
      * @param int $gameId ID of the game to load
      * @return bool true if account owns game : false if account does not own the game in question
      */
     public function loadLocalGame($gameId)
     {
-        $this->db->prepare('SELECT a.`minutesTotal`, a.`minutes2Weeks`, a.`minutesTotalStored`, a.`gameSlot`, a.`gameStatus`, a.`achievPer`, b.`name`, b.`community`, b.`logo`, b.`icon` FROM `ownedGamesDB` AS a, `steamGameDB` AS b WHERE a.`appid` = b.`appid` AND a.`steamid` = ? AND a.`appid` = ?');
+        $this->db->prepare('SELECT a.`minutesTotal`, a.`minutes2Weeks`, a.`minutesTotalStored`, a.`gameSlot`, a.`gameStatus`, a.`achievPer`, b.`name`, b.`community`, b.`logo`, b.`icon`, b.`owned`, b.`beaten`, b.`blacklisted` FROM `ownedGamesDB` AS a, `steamGameDB` AS b WHERE a.`appid` = b.`appid` AND a.`steamid` = ? AND a.`appid` = ?');
         $this->db->execute(array($this->steamId, $gameId), 'si');
         $result = $this->db->fetch();
 
-        if($result)
-        {
-            $this->games[$gameId] = new SteamGame($gameId, $this->config, $this->db, $this->logger, $this->util, $result['name'], $result['minutesTotal'], $result['minutes2Weeks'], $result['minutesTotalStored'], $result['gameSlot'], $result['gameStatus'], $result['achievPer'], $result['logo'], $result['icon'], $result['community']);
-            if($result['gameSlot']) {
+        if ($result) {
+            $this->games[$gameId] = new SteamGame($gameId, $this->config, $this->db, $this->logger, $this->util, $result['name'], $result['minutesTotal'], $result['minutes2Weeks'], $result['minutesTotalStored'], $result['gameSlot'], $result['gameStatus'], $result['achievPer'], $result['logo'], $result['icon'], $result['community'], $result['owned'], $result['beaten'], $result['blacklisted']);
+            if ($result['gameSlot']) {
                 $this->slots[$result['gameSlot']] = $gameId;
             }
             return true;
@@ -337,18 +525,21 @@ class SteamUser
 
     }
 
+    /**
+     * Loads all Steam Games owned by this Steam User from the local database.
+     * Will fall back to remote loading if no games for this Steam User are stored in the local database.
+     */
     public function loadLocalGames()
     {
-        $this->db->prepare('SELECT a.`appid`, a.`minutesTotal`, a.`minutes2Weeks`, a.`minutesTotalStored`, a.`gameSlot`, a.`gameStatus`, a.`achievPer`, b.`name`, b.`community`, b.`logo`, b.`icon` FROM `ownedGamesDB` AS a, `steamGameDB` AS b WHERE a.`appid` = b.`appid` AND a.`steamid` = ? ORDER BY a.`minutes2Weeks` DESC, b.`name` ASC');
+        $this->db->prepare('SELECT a.`appid`, a.`minutesTotal`, a.`minutes2Weeks`, a.`minutesTotalStored`, a.`gameSlot`, a.`gameStatus`, a.`achievPer`, b.`name`, b.`community`, b.`logo`, b.`icon`, b.`owned`, b.`beaten`, b.`blacklisted` FROM `ownedGamesDB` AS a, `steamGameDB` AS b WHERE a.`appid` = b.`appid` AND a.`steamid` = ? ORDER BY a.`minutes2Weeks` DESC, b.`name` ASC');
         $this->db->execute(array($this->steamId), 's');
         $result = $this->db->fetch();
 
-        if($result)
-        {
+        if ($result) {
             // Games Found
             do {
-                $this->games[$result['appid']] = new SteamGame($result['appid'], $this->config, $this->db, $this->logger, $this->util, $result['name'], $result['minutesTotal'], $result['minutes2Weeks'], $result['minutesTotalStored'], $result['gameSlot'], $result['gameStatus'], $result['achievPer'], $result['logo'], $result['icon'], $result['community']);
-                if($result['gameSlot']) {
+                $this->games[$result['appid']] = new SteamGame($result['appid'], $this->config, $this->db, $this->logger, $this->util, $result['name'], $result['minutesTotal'], $result['minutes2Weeks'], $result['minutesTotalStored'], $result['gameSlot'], $result['gameStatus'], $result['achievPer'], $result['logo'], $result['icon'], $result['community'], $result['owned'], $result['beaten'], $result['blacklisted']);
+                if ($result['gameSlot']) {
                     $this->slots[$result['gameSlot']] = $result['appid'];
                 }
             } while ($result = $this->db->fetch());
@@ -360,6 +551,12 @@ class SteamUser
         }
     }
 
+    /**
+     * Loads all Steam Games owned by this Steam User from the steam servers.
+     * If loadLocalGames is called before loadRemoteGames, each game will have extra data available to it which is only stored in the local database.
+     *
+     * @throws \Exception
+     */
     public function loadRemoteGames()
     {
         $this->logger->addEntry('Requesting game data from Steam servers.');
@@ -369,13 +566,13 @@ class SteamUser
 
         $gameData = @json_decode($this->util->file_get_contents_curl('http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=' . $this->config['key'] . '&steamid=' . $this->steamId . '&include_appinfo=1&include_played_free_games=1&format=json'), true)['response'];
 
-        if(!$gameData || isset($gameData['error']) || !isset($gameData['games'])) {
+        if (!$gameData || isset($gameData['error']) || !isset($gameData['games'])) {
             throw new Exception('The game data could not be retrieved. Is your profile set to private? Steam Completionist requires your profile to be set to "Public" in order to retrieve a list of your games.');
         }
 
         $gameData = $gameData['games'];
 
-        foreach($gameData as $game) {
+        foreach ($gameData as $game) {
 
             // If a game has not been played or has no community stats, we need to set them to a default value to prevent undefined index messages
             $game['playtime_forever'] = isset($game['playtime_forever']) ? $game['playtime_forever'] : 0;
@@ -383,7 +580,7 @@ class SteamUser
             $game['has_community_visible_stats'] = isset($game['has_community_visible_stats']) ? $game['has_community_visible_stats'] : false;
 
             // If we previously loaded this game locally we can carry over some parameters
-            if(isset($this->games[$game['appid']])) {
+            if (isset($this->games[$game['appid']])) {
                 $game = new SteamGame($game['appid'],
                     $this->config,
                     $this->db,
@@ -398,7 +595,10 @@ class SteamUser
                     $this->games[$game['appid']]->achievementPercentage,
                     $game['img_logo_url'],
                     $game['img_icon_url'],
-                    $game['has_community_visible_stats']);
+                    $game['has_community_visible_stats'],
+                    $this->games[$game['appid']]->numOwned,
+                    $this->games[$game['appid']]->numBeaten,
+                    $this->games[$game['appid']]->numBlacklisted);
             } else {
                 $game = new SteamGame($game['appid'],
                     $this->config,
@@ -414,7 +614,10 @@ class SteamUser
                     0,
                     $game['img_logo_url'],
                     $game['img_icon_url'],
-                    $game['has_community_visible_stats']);
+                    $game['has_community_visible_stats'],
+                    1,
+                    0,
+                    0);
             }
 
             $game->saveGame($this->steamId);
@@ -424,9 +627,8 @@ class SteamUser
         $removedGames = array_diff_key($this->games, $gameList);
 
         /** @var SteamGame $value */
-        foreach($removedGames as $value)
-        {
-            if($value->gameSlot) {
+        foreach ($removedGames as $value) {
+            if ($value->gameSlot) {
                 $this->setSlot($value->appId, 0);
             }
             $this->deleteList[$value->appId] = $value;

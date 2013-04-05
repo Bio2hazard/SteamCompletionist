@@ -47,7 +47,7 @@ class Pimple implements ArrayAccess
      *
      * @param array $values The parameters or objects.
      */
-    public function __construct (array $values = array())
+    public function __construct(array $values = array())
     {
         $this->values = $values;
     }

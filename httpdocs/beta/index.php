@@ -1,12 +1,13 @@
 <?PHP
 /**
- * @todo: jQuery UI sorted by minutes2Weeks even on ajax updates?
- * @todo: On first login to the website ( creating the steamUserDB entry ): Pre-populate toBeat slots with last Played games
- * @todo: Add error numbers to throws for multi-language errors
+ * @todo: somewhere display correlation between owned, beaten and blacklisted games
+ * @todo: display
+ * @todo: Counter for steam API requests to see how close we get to 100.000/day ?
  * @author Felix Kastner <felix@chapterfain.com>
  */
 
-if(substr($_SERVER['HTTP_HOST'], 0, 4) !== 'www.') {
+// Forward the browser to http://www.URL.com if it gets accessed through http://url.com
+if (substr($_SERVER['HTTP_HOST'], 0, 4) !== 'www.') {
     header('Location: http://www.' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 }
 
@@ -39,57 +40,60 @@ $website = new WebSite();
 try {
     $c = new Pimple();
 
-    $c['config'] = $c->share(function() {
+    $c['config'] = $c->share(function () {
         return new Config();
     });
 
-    $c['db'] = $c->share(function($c) {
+    $c['db'] = $c->share(function ($c) {
         return new Db($c['config']->db);
     });
 
-    $c['user'] = $c->share(function($c) {
-        return new User($c['config']->session, $_SERVER, $_SESSION, $_COOKIE, $c['db']);
+    $c['logger'] = $c->share(function ($c) {
+        return new DbLogger($c['config']->logger, $c['db']);
     });
 
-    $c['openid'] = $c->share(function($c) {
+    $c['user'] = $c->share(function ($c) {
+        return new User($c['config']->session, $_SERVER, $_SESSION, $_COOKIE, $c['db'], $c['logger']);
+    });
+
+    $c['openid'] = $c->share(function ($c) {
         return new LightOpenID($c['config']->openId);
     });
 
-    $c['logger'] = $c->share(function($c) {
-        return new DbLogger($c['config']->logger, $c['db'], $c['user']->userId, $_SERVER['REMOTE_ADDR']);
-    });
-
-    $c['util'] = $c->share(function($c) {
+    $c['util'] = $c->share(function ($c) {
         return new Util($c['logger']);
     });
 
     /** @var \Classes\Common\Database\DatabaseInterface $db */
     $db = $c['db'];
 
-    /** @var LightOpenID $openid  */
+    /** @var LightOpenID $openid */
     $openid = $c['openid'];
 
     /** @var User $user */
     $user = $c['user'];
 
-    /** @var \Classes\Common\Logger\LoggerInterface $logger  */
+    /** @var \Classes\Common\Logger\LoggerInterface $logger */
     $logger = $c['logger'];
 
-    /** @var Util $util  */
+    /** @var Util $util */
     $util = $c['util'];
 
     $_SESSION = $user->session;
     $_COOKIE = $user->cookie;
 
-    if($openid->mode === 'id_res' && $openid->validate()) {
-        // Login Successful
-        $user->userId = substr($openid->data['openid_claimed_id'],36);
+    $logger->setUser($user->userId);
+    $logger->setIP($_SERVER['REMOTE_ADDR']);
 
-        $c['steamUser'] = $c->share(function($c) {
+    if ($openid->mode === 'id_res' && $openid->validate()) {
+        // Login Successful
+        $user->userId = substr($openid->data['openid_claimed_id'], 36);
+
+        $c['steamUser'] = $c->share(function ($c) {
             return new SteamUser($c['config']->steam, $c['user']->userId, $c['db'], $c['util'], $c['logger']);
         });
 
-        /** @var SteamUser $steamUser  */
+        /** @var SteamUser $steamUser */
         $steamUser = $c['steamUser'];
 
         $steamUser->loadLocalUserInfo();
@@ -99,13 +103,13 @@ try {
         $_SESSION = $user->session;
         $_COOKIE = $user->cookie;
         header('Location: http://' . $_SERVER['HTTP_HOST'] . substr($_SERVER['REQUEST_URI'], 0, strpos($_SERVER['REQUEST_URI'], '?')));
-    } elseif($openid->mode) {
+    } elseif ($openid->mode) {
         throw new Exception('Login through Steam failed.');
     }
 
-    if(isset($_GET['login'])) {
+    if (isset($_GET['login'])) {
         header('Location: ' . $openid->authUrl());
-    } elseif(isset($_GET['logout'])) {
+    } elseif (isset($_GET['logout'])) {
         $user->logout();
         $_SESSION = $user->session;
         $_COOKIE = $user->cookie;
@@ -113,15 +117,15 @@ try {
     }
 
     // If user is not logged in, we can exit out of the try block and show the website in logged out state.
-    if(!$user->loggedIn()) {
+    if (!$user->loggedIn()) {
         throw new Exception;
     }
 
-    $c['steamUser'] = $c->share(function($c) {
+    $c['steamUser'] = $c->share(function ($c) {
         return new SteamUser($c['config']->steam, $c['user']->userId, $c['db'], $c['util'], $c['logger']);
     });
 
-    /** @var SteamUser $steamUser  */
+    /** @var SteamUser $steamUser */
     $steamUser = $c['steamUser'];
 
     // Load the local userdata ( will fall back to remote loading if no local data is available )
@@ -141,4 +145,5 @@ $website->display();
 
 try {
     $logger->addEntry('Finished');
-} catch (Exception $e) {}
+} catch (Exception $e) {
+}

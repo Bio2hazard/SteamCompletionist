@@ -23,13 +23,14 @@ class Util
     }
 
     /**
-     * Implementation of file_get_contents using CURL
+     * Implementation of file_get_contents using CURL.
      * Will optionally use a logger.
      *
-     * @param string $url url to open
-     * @return mixed
+     * @param string $url url to open.
+     * @return mixed result from the CURL request.
      */
-    public function file_get_contents_curl($url) {
+    public function file_get_contents_curl($url)
+    {
         $ch = curl_init();
 
         curl_setopt($ch, CURLOPT_HEADER, false);
@@ -40,11 +41,10 @@ class Util
 
         $data = curl_exec($ch);
 
-        if($this->logger) {
-            if(curl_errno($ch))
-            {
+        if ($this->logger) {
+            if (curl_errno($ch)) {
                 $this->logger->addEntry('Curl error: ' . curl_error($ch));
-            } elseif(curl_getinfo($ch, CURLINFO_HTTP_CODE) != 200) {
+            } elseif (curl_getinfo($ch, CURLINFO_HTTP_CODE) != 200) {
                 $this->logger->addEntry('Curl HTML CODE: ' . curl_getinfo($ch, CURLINFO_HTTP_CODE));
             }
         }

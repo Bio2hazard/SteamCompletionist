@@ -5,7 +5,7 @@
  *
  * @author Felix Kastner <felix@chapterfain.com>
  */
-if(substr($_SERVER['HTTP_HOST'], 0, 4) !== 'www.') {
+if (substr($_SERVER['HTTP_HOST'], 0, 4) !== 'www.') {
     header('Location: http://www.' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 }
 
@@ -35,66 +35,63 @@ use Classes\SteamCompletionist\Steam\SteamUser as SteamUser;
 try {
     $c = new Pimple();
 
-    $c['config'] = $c->share(function() {
+    $c['config'] = $c->share(function () {
         return new Config();
     });
 
-    $c['db'] = $c->share(function($c) {
+    $c['db'] = $c->share(function ($c) {
         return new PdoDb($c['config']->db);
     });
 
-    $c['user'] = $c->share(function($c) {
-        return new User($c['config']->session, $_SERVER, $_SESSION, $_COOKIE, $c['db']);
+    $c['logger'] = $c->share(function ($c) {
+        return new DbLogger($c['config']->logger, $c['db']);
     });
 
-    $c['openid'] = $c->share(function($c) {
-        return new LightOpenID($c['config']->openId);
+    $c['user'] = $c->share(function ($c) {
+        return new User($c['config']->session, $_SERVER, $_SESSION, $_COOKIE, $c['db'], $c['logger']);
     });
 
-    $c['logger'] = $c->share(function($c) {
-        return new DbLogger($c['config']->logger, $c['db'], $c['user']->userId, $_SERVER['REMOTE_ADDR']);
-    });
-
-    $c['util'] = $c->share(function($c) {
+    $c['util'] = $c->share(function ($c) {
         return new Util($c['logger']);
     });
 
     /** @var \Classes\Common\Database\DatabaseInterface $db */
     $db = $c['db'];
 
-    /** @var LightOpenID $openid  */
-    $openid = $c['openid'];
-
     /** @var User $user */
     $user = $c['user'];
 
-    /** @var \Classes\Common\Logger\LoggerInterface $logger  */
+    /** @var \Classes\Common\Logger\LoggerInterface $logger */
     $logger = $c['logger'];
 
-    /** @var Util $util  */
+    /** @var Util $util */
     $util = $c['util'];
 
     $_SESSION = $user->session;
     $_COOKIE = $user->cookie;
 
-    // If user is not logged in, we can exit out of the try block and show the website in logged out state.
-    if(!$user->loggedIn()) {
+    $logger->setUser($user->userId);
+    $logger->setIP($_SERVER['REMOTE_ADDR']);
+
+    // If user is not logged in, then the AJAX module has nothing to do.
+    if (!$user->loggedIn()) {
         throw new Exception('Not logged in.');
     }
 
-    $c['steamUser'] = $c->share(function($c) {
+    $c['steamUser'] = $c->share(function ($c) {
         return new SteamUser($c['config']->steam, $c['user']->userId, $c['db'], $c['util'], $c['logger']);
     });
 
-    /** @var SteamUser $steamUser  */
+    /** @var SteamUser $steamUser */
     $steamUser = $c['steamUser'];
 
 
     $return = array();
 
-    switch($_GET['mode'])
-    {
+    switch ($_GET['mode']) {
         case 'getsteamdata':
+            $steamUser->loadLocalUserInfo();
+            $steamUser->loadLocalGames();
             $steamUser->loadRemoteUserInfo();
             $steamUser->loadRemoteGames();
             $return['steamuser'] = $steamUser->getUserData();
@@ -104,15 +101,16 @@ try {
 
         case 'savegamestatus':
             // Sanity Checks:
-            if(!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 2 || $_GET['value'] < 0)
-                die(json_encode(array("errorlog" => "Invalid game slot. ")));
+            if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 2 || $_GET['value'] < 0) {
+                throw new Exception('Invalid game slot.');
+            }
             $status = $_GET['value'];
 
-            if(!$_GET['gid'] || !is_numeric($_GET['gid']))
+            if (!$_GET['gid'] || !is_numeric($_GET['gid']))
                 die(json_encode(array("errorlog" => "Invalid game id. ")));
             $gameId = $_GET['gid'];
 
-            if($steamUser->loadLocalGame($gameId)) {
+            if ($steamUser->loadLocalGame($gameId)) {
                 $steamUser->setStatus($gameId, $status);
             }
 
@@ -120,36 +118,75 @@ try {
 
         case 'savegameslot':
             // Sanity Checks:
-            if(!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 10 || $_GET['value'] < 0)
-                die(json_encode(array("errorlog" => "Invalid game slot. ")));
+            if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 10 || $_GET['value'] < 0) {
+                throw new Exception('Invalid game slot.');
+            }
             $slot = $_GET['value'];
 
-            if(!$_GET['gid'] || !is_numeric($_GET['gid']))
-                die(json_encode(array("errorlog" => "Invalid game id. ")));
+            if (!$_GET['gid'] || !is_numeric($_GET['gid'])) {
+                throw new Exception('Invalid game id.');
+            }
             $gameId = $_GET['gid'];
 
-            if($steamUser->loadLocalGame($gameId)) {
+            if ($steamUser->loadLocalGame($gameId)) {
                 $steamUser->setSlot($gameId, $slot);
             }
             break;
 
         case 'achievpercent':
             // Sanity Checks:
-            if(!$_GET['gid'] || !is_numeric($_GET['gid'])) {
+            if (!$_GET['gid'] || !is_numeric($_GET['gid'])) {
                 throw new Exception('Invalid game id.');
             }
             $gameId = $_GET['gid'];
 
             $steamUser->loadLocalGame($gameId);
 
-            if(isset($steamUser->games[$gameId])) {
-                /** @var \Classes\SteamCompletionist\Steam\SteamGame $game  */
+            if (isset($steamUser->games[$gameId])) {
+                /** @var \Classes\SteamCompletionist\Steam\SteamGame $game */
                 $game = $steamUser->games[$gameId];
-                if($game->community) {
+                if ($game->community) {
                     $game->getAchievementPercentage($user->userId);
                     $return['gameachiev'] = array('gameid' => $gameId, 'percentage' => $game->achievementPercentage);
                 }
             }
+            break;
+
+        case 'savenumtobeat':
+            // Sanity Checks:
+            if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 10 || $_GET['value'] < 1) {
+                throw new Exception('Invalid number for to beat slots.');
+            }
+            $newToBeatNum = $_GET['value'];
+
+            $steamUser->loadLocalUserInfo();
+            $steamUser->loadLocalGames();
+            $steamUser->setNumToBeat($newToBeatNum);
+
+            break;
+
+        case 'saveconsiderbeaten':
+            // Sanity Checks:
+            if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 1 || $_GET['value'] < 0) {
+                throw new Exception('Invalid number for consider beaten toggle.');
+            }
+            $newConsiderBeaten = $_GET['value'];
+
+            $steamUser->loadLocalUserInfo();
+            $steamUser->setConsiderBeaten($newConsiderBeaten);
+
+            break;
+
+        case 'savehidequickstats':
+            // Sanity Checks:
+            if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 1 || $_GET['value'] < 0) {
+                throw new Exception('Invalid number for hide quick stats toggle.');
+            }
+            $newHideQuickStats = $_GET['value'];
+
+            $steamUser->loadLocalUserInfo();
+            $steamUser->setHideQuickStats($newHideQuickStats);
+
             break;
 
         default:
@@ -158,10 +195,8 @@ try {
     }
 
 
-
-
     $logger->addEntry('Ajax request finished');
     echo json_encode($return);
 } catch (Exception $e) {
-    echo json_encode(array('errorlog'=>$e->getMessage()));
+    echo json_encode(array('errorlog' => $e->getMessage()));
 }

@@ -9,15 +9,34 @@ namespace Classes\Common\Database;
  */
 trait DatabaseTrait
 {
-    /** @var \mysqli|\PDO $link */
+    /**
+     * Contains the link to the database.
+     * @var \mysqli|\PDO $link
+     */
     protected $link;
 
-    /** @var \mysqli_stmt|\PDOStatement $stmt */
+    /**
+     * Contains the statement link.
+     * @var \mysqli_stmt|\PDOStatement $stmt
+     */
     protected $stmt;
 
+    /**
+     * Holds the last prepared query, is used so we can reuse the same statement link if the query is identical.
+     * @var string
+     */
     protected $lastPrepared = NULL;
 
+    /**
+     * Holds a array of configuration values used by the Databases.
+     * @var array
+     */
     private $config;
+
+    /**
+     * Holds the number of rows that were affected by the last query.
+     * @var int
+     */
     public $affectedRows = 0;
 
     /**
@@ -41,11 +60,11 @@ trait DatabaseTrait
     /**
      * {@inheritdoc}
      */
-    public function &getLink() 
+    public function &getLink()
     {
         return $this->link;
     }
-    
+
     /**
      * {@inheritdoc}
      */
