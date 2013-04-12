@@ -157,6 +157,17 @@ div.game_boxes {
     display: inline-block;
 }
 
+/* div.account_stat_box holds the pie chart */
+div.account_stat_box {
+    margin: 0 -14px -10px 0;
+    display: inline-block;
+    width: 210px;
+    height: 115px;
+    vertical-align: bottom;
+    overflow: hidden;
+    position: relative;
+}
+
 /* .game_box sets up the individual game box of each "to beat" game */
 div.game_box {
     margin: 1em 1em 2em 1em;
@@ -540,6 +551,7 @@ button.focus > span.ui-icon {
     top: 50%;
     margin-top: -10px;
 }
+
 .cookielaw:before {
     border-color: rgba(139, 197, 63, 0);
     border-right-color: #8bc53f;

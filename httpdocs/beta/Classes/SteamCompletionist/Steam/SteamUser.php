@@ -105,6 +105,12 @@ class SteamUser
     public $hideQuickStats = 0;
 
     /**
+     * Toggle whether the account stats are shown or not.
+     * @var int
+     */
+    public $hideAccountStats = 0;
+
+    /**
      * Name of the game the Steam User is currently playing.
      * @var string
      */
@@ -234,6 +240,7 @@ class SteamUser
         $returnArray['avatar'] = 'http://media.steampowered.com/steamcommunity/public/images/avatars/' . substr($this->avatarHash, 0, 2) . '/' . $this->avatarHash . '.jpg';
         $returnArray['status'] = $this->getStatusString($state).$this->gameName;
         $returnArray['name'] = htmlentities(stripslashes($this->personaName));
+        $returnArray['points'] = $this->points;
         return $returnArray;
     }
 
@@ -268,7 +275,7 @@ class SteamUser
      */
     public function setConsiderBeaten($considerBeaten)
     {
-        $this->db->prepare('UPDATE `steamUserDB` SET `considerBeaten` = ? WHERE `steamid` = ?');
+        $this->db->prepare('UPDATE `steamUserDB` SET considerBeaten = ? WHERE `steamid` = ?');
         $this->db->execute(array($considerBeaten, $this->steamId), 'is');
         $this->considerBeaten = $considerBeaten;
     }
@@ -284,6 +291,19 @@ class SteamUser
         $this->db->prepare('UPDATE `steamUserDB` SET `hideQuickStats` = ? WHERE `steamid` = ?');
         $this->db->execute(array($hideQuickStats, $this->steamId), 'is');
         $this->hideQuickStats = $hideQuickStats;
+    }
+
+    /**
+     * Updates the hideAccountStats flag for the user.
+     * hideAccountStats is a toggle that makes the website hide the google chart that shows percentages of beaten, played, unplayed and blacklisted games.
+     *
+     * @param $hideAccountStats
+     */
+    public function setHideAccountStats($hideAccountStats)
+    {
+        $this->db->prepare('UPDATE `steamUserDB` SET `hideAccountStats` = ? WHERE `steamid` = ?');
+        $this->db->execute(array($hideAccountStats, $this->steamId), 'is');
+        $this->hideAccountStats = $hideAccountStats;
     }
 
     /**
@@ -381,6 +401,7 @@ class SteamUser
                     $this->db->prepare('UPDATE `steamUserDB` SET `points` = `points` + ? WHERE `steamid` = ?');
                     $this->db->execute(array($points, $this->steamId), 'is');
                     $this->logger->addEntry($points . ' Points awarded for removing game ' . $removedGame->name . ' from a slot.');
+                    $this->points = $this->points + $points;
                 }
             } else {
                 throw new Exception('Game slot update failed.');
@@ -420,7 +441,7 @@ class SteamUser
     public function loadLocalUserInfo()
     {
         try {
-            $this->db->prepare('SELECT `personaname`, `personastate`, `points`, (UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(`lastUpdate`)) AS `lastUpdate`, `profileurl`, `profilestate`, avatar, `toBeatNum`, `considerBeaten`, `hideQuickStats`, `gameName` FROM `steamUserDB` WHERE `steamid` = ?');
+            $this->db->prepare('SELECT `personaname`, `personastate`, `points`, (UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(`lastUpdate`)) AS `lastUpdate`, `profileurl`, `profilestate`, `avatar`, `toBeatNum`, `considerBeaten`, `hideQuickStats`, `hideAccountStats`, `gameName` FROM `steamUserDB` WHERE `steamid` = ?');
             $this->db->execute(array($this->steamId), 's');
             $result = $this->db->fetch();
 
@@ -435,6 +456,7 @@ class SteamUser
                 $this->toBeatNum = $result['toBeatNum'];
                 $this->considerBeaten = $result['considerBeaten'];
                 $this->hideQuickStats = $result['hideQuickStats'];
+                $this->hideAccountStats = $result['hideAccountStats'];
                 $this->gameName = $result['gameName'];
                 $this->logger->addEntry('Grabbed userdata from local database.');
             } else {
@@ -453,6 +475,8 @@ class SteamUser
     public function loadRemoteUserInfo()
     {
         $userInfo = @json_decode($this->util->file_get_contents_curl('http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=' . $this->config['key'] . '&steamids=' . $this->steamId), true)['response']['players'][0];
+        $this->db->prepare('INSERT INTO `steamAPIUsage` SET `module` = 1');
+        $this->db->execute();
 
         if (!$userInfo) {
             throw new Exception('The steam servers failed to respond to the user info request, probably due to heavy load.');
@@ -565,6 +589,9 @@ class SteamUser
         $gameList = array();
 
         $gameData = @json_decode($this->util->file_get_contents_curl('http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/?key=' . $this->config['key'] . '&steamid=' . $this->steamId . '&include_appinfo=1&include_played_free_games=1&format=json'), true)['response'];
+        $this->db->prepare('INSERT INTO `steamAPIUsage` SET `module` = 2');
+        $this->db->execute();
+
 
         if (!$gameData || isset($gameData['error']) || !isset($gameData['games'])) {
             throw new Exception('The game data could not be retrieved. Is your profile set to private? Steam Completionist requires your profile to be set to "Public" in order to retrieve a list of your games.');

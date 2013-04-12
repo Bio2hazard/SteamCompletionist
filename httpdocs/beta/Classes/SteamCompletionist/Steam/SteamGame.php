@@ -173,6 +173,9 @@ class SteamGame
     public function getAchievementPercentage($steamId)
     {
         $achievements = @json_decode($this->util->file_get_contents_curl('http://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/?key=' . $this->config['key'] . '&steamid=' . $steamId . '&appid=' . $this->appId))->playerstats;
+        $this->db->prepare('INSERT INTO `steamAPIUsage` SET `module` = 3');
+        $this->db->execute();
+
         $curlSuccess = false;
         $percentage = 142; // We default the percentage to 142 .. essentially the number does not matter so long as it is above 100
 

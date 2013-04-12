@@ -1,8 +1,8 @@
 <?PHP
 /**
- * @todo: somewhere display correlation between owned, beaten and blacklisted games
- * @todo: display
- * @todo: Counter for steam API requests to see how close we get to 100.000/day ?
+ * Main index file.
+ * Prepares everything and then uses the WebSite class to display the website.
+ *
  * @author Felix Kastner <felix@chapterfain.com>
  */
 

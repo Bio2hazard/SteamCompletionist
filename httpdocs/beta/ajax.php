@@ -106,14 +106,17 @@ try {
             }
             $status = $_GET['value'];
 
-            if (!$_GET['gid'] || !is_numeric($_GET['gid']))
+            if (!$_GET['gid'] || !is_numeric($_GET['gid'])) {
                 die(json_encode(array("errorlog" => "Invalid game id. ")));
+            }
             $gameId = $_GET['gid'];
+
+            $steamUser->loadLocalUserInfo();
 
             if ($steamUser->loadLocalGame($gameId)) {
                 $steamUser->setStatus($gameId, $status);
             }
-
+            $return['steamuser'] = $steamUser->getUserData();
             break;
 
         case 'savegameslot':
@@ -128,9 +131,12 @@ try {
             }
             $gameId = $_GET['gid'];
 
+            $steamUser->loadLocalUserInfo();
+
             if ($steamUser->loadLocalGame($gameId)) {
                 $steamUser->setSlot($gameId, $slot);
             }
+            $return['steamuser'] = $steamUser->getUserData();
             break;
 
         case 'achievpercent':
@@ -186,6 +192,18 @@ try {
 
             $steamUser->loadLocalUserInfo();
             $steamUser->setHideQuickStats($newHideQuickStats);
+
+            break;
+
+        case 'savehideaccountstats':
+            // Sanity Checks:
+            if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 1 || $_GET['value'] < 0) {
+                throw new Exception('Invalid number for hide account stats toggle.');
+            }
+            $newHideAccountStats = $_GET['value'];
+
+            $steamUser->loadLocalUserInfo();
+            $steamUser->setHideAccountStats($newHideAccountStats);
 
             break;
 

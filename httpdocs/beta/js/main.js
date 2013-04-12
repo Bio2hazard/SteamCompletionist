@@ -18,7 +18,13 @@ var gamelock = [],
     tobeatnum,
     considerbeaten,
     hidequickstats,
-    addInfoCard;
+    hideaccountstats,
+    addInfoCard,
+    stats = [],
+    updateChart,
+    chart,
+    chartData,
+    chartOptions;
 
 // Used to display AJAX errors
 function errorMessage(message) {
@@ -73,6 +79,7 @@ function loadData(mode, gameid, value) {
 
         function (data) {
             var game;
+
             if (data !== undefined) {
                 if (data.errorlog !== undefined) {
                     errorMessage(data.errorlog);
@@ -80,7 +87,7 @@ function loadData(mode, gameid, value) {
 
                 if (data.steamuser !== undefined) {
                     $('.avatar').removeClass().addClass('avatar' + data.steamuser['class']).attr("src", data.steamuser.avatar);
-                    $('.statustext').removeClass().addClass('statustext' + data.steamuser['class']).html(data.steamuser.name + '<br/>' + data.steamuser.status);
+                    $('.statustext').removeClass().addClass('statustext' + data.steamuser['class']).html(data.steamuser.name + '<br/>' + data.steamuser.status + '<br/><span id="points">' + data.steamuser.points + '</span>  Points');
                 }
                 // Debug display
                 //if (typeof data.debuglog !== 'undefined') {
@@ -121,6 +128,8 @@ function loadData(mode, gameid, value) {
                         }
                         return -1;
                     });
+                    // Update stats
+                    updateChart();
                 }
                 if (data.deletelist !== undefined) {
                     $.each(data.deletelist, function () {
@@ -525,6 +534,7 @@ $.fn.activeInfoCard = function () {
                 if (!showblacklisted) {
                     listboxes.find('#' + gameid).fadeOut("slow");
                 }
+                updateChart();
             });
 
         $(this).siblings('.beat').button({
@@ -554,6 +564,7 @@ $.fn.activeInfoCard = function () {
                 if (!showbeat) {
                     listboxes.find('#' + gameid).fadeOut("slow");
                 }
+                updateChart();
             });
 
         if (status === '1') {
@@ -695,6 +706,7 @@ addInfoCard = function (event) {
                         game.fadeOut("slow");
                     }
                 }
+                updateChart();
             });
 
         $(target).siblings('.beat').button({
@@ -717,6 +729,7 @@ addInfoCard = function (event) {
                 if (!showbeat) {
                     game.fadeOut("slow");
                 }
+                updateChart();
             });
 
         if (status === '1') {
@@ -758,18 +771,86 @@ addInfoCard = function (event) {
     return false;
 };
 
+function scrollerCheck() {
+    "use strict";
+    var games_selector = $('header.games'),
+        wrapper_selector = $('div.list_wrapper');
+    if(games_selector[0].scrollWidth > games_selector[0].clientWidth)
+    {
+        games_selector.css('height', '154px');
+        wrapper_selector.css('top', '215px');
+    } else
+    {
+        games_selector.css('height', '137px');
+        wrapper_selector.css('top', '198px');
+    }
+}
+
+updateChart = function () {
+    "use strict";
+    var listbox = $('.list_box > .game_image');
+
+    stats.owned = listbox.length;
+    stats.played = listbox.filter('[data-minutestotal!=0][data-achievper!=100][data-status=0]').length;
+    stats.beaten = listbox.filter('[data-achievper!=100][data-status=1]').length;
+    stats.blacklisted = listbox.filter('[data-achievper!=100][data-status=2]').length;
+    stats.completed = listbox.filter('[data-achievper=100]').length;
+    stats.unplayed = stats.owned - (stats.played + stats.beaten + stats.blacklisted + stats.completed);
+
+    chartData.setCell(0, 1, stats.completed);
+    chartData.setCell(1, 1, stats.beaten);
+    chartData.setCell(2, 1, stats.played);
+    chartData.setCell(3, 1, stats.unplayed);
+    chartData.setCell(4, 1, stats.blacklisted);
+
+    chart.draw(chartData, chartOptions);
+};
+
+function newChart() {
+    "use strict";
+    // Create the data table.
+    chartData = new google.visualization.DataTable();
+    chartData.addColumn('string', 'Status');
+    chartData.addColumn('number', 'Games');
+    chartData.addRows([
+        ['Completed', stats.completed],
+        ['Beaten', stats.beaten],
+        ['Played', stats.played],
+        ['Unplayed', stats.unplayed],
+        ['Blacklisted', stats.blacklisted]
+    ]);
+
+    // Set chart options
+    chartOptions = {'backgroundColor':'#2d2d2b',
+        'chartArea':{'left':7, 'top':0, 'width':'100%', 'height':'100%'},
+        'legend':{'position':'right', 'alignment':'center', 'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':9}},
+        'slices':{0: {'color':'#ffcc00'}, 1: {'color':'#8bc53f'}, 2: {'color':'#62a7e3'}, 3: {'color':'#ff9933'}, 4: {'color':'#c80000'}},
+        'pieSliceTextStyle':{'color':'black', 'fontName':'Arial', 'fontSize':11},
+        'is3D':true,
+        'width':210,
+        'height':115
+    };
+
+    // Instantiate and draw our chart, passing in some options.
+    chart = new google.visualization.PieChart(document.getElementById('account_stats'));
+    chart.draw(chartData, chartOptions);
+}
+
+
 $(document).ready(function () {
     "use strict";
     var settings = $('#settings'),
         fillslot = $('#fillslot'),
         gamebox = $('.game_box > .game_image'),
-        error = $('#error');
+        error = $('#error'),
+        listbox = $('.list_box > .game_image');
     loggeduser = $('#terms').attr('data-user');
 
     if (loggeduser > 0) {
         tobeatnum = settings.attr('data-tobeat');
         considerbeaten = settings.attr('data-considerbeaten');
         hidequickstats = settings.attr('data-hidequickstats');
+        hideaccountstats = settings.attr('data-hideaccountstats');
 
         select = $('#numgames');
 
@@ -930,7 +1011,8 @@ $(document).ready(function () {
                         var x,
                             newtobeatnum = $('#numgames').val(),
                             newconsiderbeaten = $('#considerbeaten').attr('checked') ? '1' : '0',
-                            newhidequickstats = $('#hidequickstats').attr('checked') ? '1' : '0';
+                            newhidequickstats = $('#hidequickstats').attr('checked') ? '1' : '0',
+                            newhideaccountstats = $('#hideaccountstats').attr('checked') ? '1' : '0';
 
                         if (tobeatnum !== newtobeatnum) {
                             loadData('savenumtobeat', 0, newtobeatnum);
@@ -969,6 +1051,17 @@ $(document).ready(function () {
                                 $('.stat_box').css('display', '');
                             }
                         }
+
+                        if (hideaccountstats !== newhideaccountstats) {
+                            loadData('savehideaccountstats', 0, newhideaccountstats);
+                            hideaccountstats = newhideaccountstats;
+                            if (hideaccountstats === '1') {
+                                $('#account_stats').css('display', 'none');
+                            } else {
+                                $('#account_stats').css('display', '');
+                            }
+                        }
+
                         $(this).dialog("close");
                     }},
                     { text: "Cancel", click: function () {
@@ -983,6 +1076,11 @@ $(document).ready(function () {
                             $('#hidequickstats').prop("checked", true);
                         } else {
                             $('#hidequickstats').prop("checked", false);
+                        }
+                        if (hideaccountstats === '1') {
+                            $('#hideaccountstats').prop("checked", true);
+                        } else {
+                            $('#hideaccountstats').prop("checked", false);
                         }
                         $(this).dialog("close");
                     }}
@@ -1050,6 +1148,9 @@ $(document).ready(function () {
     // Makes the entire lower area droppable
     $('.list_wrapper').setGameBoxDrop();
 
+    // Register the resize handler to make room for the scrollbar
+    $(window).on('resize', scrollerCheck);
+
     // Tooltip setup
     $(document).tooltip({
         track: true,
@@ -1057,6 +1158,17 @@ $(document).ready(function () {
             delay: 500
         }
     });
+
+    scrollerCheck();
+
+    stats.owned = listbox.length;
+    stats.played = listbox.filter('[data-minutestotal!=0][data-achievper!=100][data-status=0]').length;
+    stats.beaten = listbox.filter('[data-achievper!=100][data-status=1]').length;
+    stats.blacklisted = listbox.filter('[data-achievper!=100][data-status=2]').length;
+    stats.completed = listbox.filter('[data-achievper=100]').length;
+    stats.unplayed = stats.owned - (stats.played + stats.beaten + stats.blacklisted + stats.completed);
+
+    google.load('visualization', '1.0', {'packages':['corechart'], 'callback' : newChart});
 
     if (error.length) {
         errorMessage(error.html());

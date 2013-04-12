@@ -54,6 +54,7 @@ class WebSite
             <link rel="stylesheet" href="css/reset.css" type="text/css"/>
             <link rel="stylesheet" href="css/jquery-ui-1.10.0.custom.min.css" type="text/css"/>
             <link rel="stylesheet" href="css/main.css" type="text/css"/>
+            <script type="text/javascript" src="https://www.google.com/jsapi"></script>
             <script type="text/javascript" src="js/jquery-1.8.3.min.js"></script>
             <script type="text/javascript" src="js/jquery-ui-1.10.0.custom.min.js"></script>
             <script type="text/javascript" src="js/main.js"></script>
@@ -125,6 +126,8 @@ class WebSite
                                     class="statustext<?= $userdata['class'] ?>"><?= $userdata['name'] ?>
                                     <br/>
                                     <?= $userdata['status'] ?>
+                                    <br/>
+                                    <span id="points"><?= $this->steamUser->points ?></span> Points
                                 </span>
                             </div>
                         </div>
@@ -154,16 +157,21 @@ class WebSite
     /**
      * Displays the Steam User's "to beat" bar.
      */
-    private function toBeatBar($toBeatNum)
+    private function toBeatBar($toBeatNum, $hideAccountStats)
     {
         ?>
         <header class="games">
             <div class="game_body">
                 <div class="game_boxes">
-                    <h2 class="beattag">Beat these games! <span>You have <span
-                                id="points"><?= $this->steamUser->points ?></span> points</span></h2>
+                    <h2 class="beattag">Beat these games!</h2>
                     <?PHP
-                    // For now we assume a "to beat" list of 5 games. Can be expanded / user-set later on
+                    //if $hideAccountStats is true, we attach style="display:none" into the div box.
+                    $accountCSS = '';
+                    if($hideAccountStats) {
+                        $accountCSS = ' style="display:none"';
+                    }
+                    echo '<div id="account_stats"' . $accountCSS . ' class="account_stat_box"></div>';
+
                     for ($x = 1; $x <= $toBeatNum; $x++) {
                         $string = '';
                         $beaten = '';
@@ -291,11 +299,11 @@ class WebSite
     /**
      * Displays the settings pop-up window. Also contains the state of some toggles.
      */
-    private function settings($toBeatNum, $considerBeaten, $hideQuickStats)
+    private function settings($toBeatNum, $considerBeaten, $hideQuickStats, $hideAccountStats)
     {
         ?>
         <div id="settings" data-tobeat="<?= $toBeatNum ?>" data-considerbeaten="<?= $considerBeaten ?>"
-             data-hidequickstats="<?= $hideQuickStats ?>">
+             data-hidequickstats="<?= $hideQuickStats ?>" data-hideaccountstats="<?= $hideAccountStats ?>">
             <div class="settings">
                 <form id="scsettings" autocomplete="off">
                     <label for="numgames">Number of games you wish to play concurrently</label>
@@ -331,6 +339,15 @@ class WebSite
                     ?>
                     <label for="hidequickstats">Hide the quick stats shown in the bottom right corner of games with
                         active info cards</label>
+                    <br>
+                    <?PHP
+                    if ($hideAccountStats) {
+                        ?><input id="hideaccountstats" type="checkbox" name="hideaccountstats" checked><?PHP
+                    } else {
+                        ?><input id="hideaccountstats" type="checkbox" name="hideaccountstats"><?PHP
+                    }
+                    ?>
+                    <label for="hideaccountstats">Hide the account stats shown as the left-most entry in the "Beat these games" category</label>
                 </form>
             </div>
         </div>
@@ -444,7 +461,7 @@ class WebSite
         $this->userBar();
 
         if ($this->steamUser && $this->steamUser->profileState == 3) {
-            $this->toBeatBar($this->steamUser->toBeatNum);
+            $this->toBeatBar($this->steamUser->toBeatNum, $this->steamUser->hideAccountStats);
             $this->gamesList();
         } elseif ($this->steamUser) {
             // Profile is private.
@@ -452,7 +469,7 @@ class WebSite
         }
 
         if ($this->steamUser) {
-            $this->settings($this->steamUser->toBeatNum, $this->steamUser->considerBeaten, $this->steamUser->hideQuickStats);
+            $this->settings($this->steamUser->toBeatNum, $this->steamUser->considerBeaten, $this->steamUser->hideQuickStats, $this->steamUser->hideAccountStats);
             $this->terms($this->steamUser->steamId);
         } else {
             $this->terms();
