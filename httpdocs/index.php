@@ -11,9 +11,6 @@ if (substr($_SERVER['HTTP_HOST'], 0, 4) !== 'www.') {
     header('Location: http://www.' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 }
 
-// To be disabled once the website is entirely done
-error_reporting(E_ALL | E_STRICT);
-
 // Set up the session ( SGS = Steam Game Session )
 session_name('SGS');
 session_start();
@@ -22,7 +19,7 @@ session_start();
 ini_set('default_socket_timeout', 30);
 
 require 'Classes/Common/AutoLoader/AutoLoader.php';
-require '../../private/Config.php';
+require '../private/Config.php';
 
 $autoLoader = new Classes\Common\AutoLoader\AutoLoader();
 

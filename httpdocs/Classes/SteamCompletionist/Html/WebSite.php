@@ -51,13 +51,14 @@ class WebSite
         <head>
             <meta charset="utf-8"/>
             <title><?= $title ?></title>
-            <link rel="stylesheet" href="css/reset.css" type="text/css"/>
-            <link rel="stylesheet" href="css/jquery-ui-1.10.0.custom.min.css" type="text/css"/>
-            <link rel="stylesheet" href="css/main.css" type="text/css"/>
+            <link rel='icon' href='../../../favicon.png' type='image/png' />
+            <link rel="stylesheet" href="../../../css/reset.css" type="text/css"/>
+            <link rel="stylesheet" href="../../../css/jquery-ui-1.10.0.custom.min.css" type="text/css"/>
+            <link rel="stylesheet" href="../../../css/main.css" type="text/css"/>
             <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-            <script type="text/javascript" src="js/jquery-1.8.3.min.js"></script>
-            <script type="text/javascript" src="js/jquery-ui-1.10.0.custom.min.js"></script>
-            <script type="text/javascript" src="js/main.js"></script>
+            <script type="text/javascript" src="../../../js/jquery-1.8.3.min.js"></script>
+            <script type="text/javascript" src="../../../js/jquery-ui-1.10.0.custom.min.js"></script>
+            <script type="text/javascript" src="../../../js/main.js"></script>
             <!--[if IE]>
             <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
             <!--[if lt IE 9]>
@@ -79,13 +80,13 @@ class WebSite
             </h1>
 
             <h2>
-                <strong>Steam Completionist</strong> can only display your games if you set your profile to
+                <strong>SteamCompletionist.net</strong> can only display your games if you set your profile to
                 "public".<br>
                 <a href="steam://url/SteamIDEditPage">Click here to go to your profile settings in the steam client</a>
                 -&gt; <a href="">Then click here to retry</a><br>
                 Here is a picture to illustrate:
             </h2>
-            <img src="img/profile.png"/>
+            <img src="../../../img/profile.png"/>
         </div>
     <?PHP
     }
@@ -98,7 +99,7 @@ class WebSite
         ?>
         <header class="header">
             <div class="body">
-                <h1 class="webtitle">Steam Completionist: <strong>Beat your games</strong></h1>
+                <h1 class="webtitle">SteamCompletionist.net: <strong>Beat your games</strong></h1>
 
                 <div class="steamuser">
                     <?PHP
@@ -107,7 +108,7 @@ class WebSite
                         $userdata = $this->steamUser->getUserData();
                         ?>
                         <div class="logged">
-                            <p class="loader"><img src="./img/loading.gif" alt="Loading" height="16" width="16"><br/>Working...
+                            <p class="loader"><img src="../../../img/loading.gif" alt="Loading" height="16" width="16"><br/>Working...
                             </p>
                             <button id="showbeat" class="topbutton">Toggle showing games you've beaten</button>
                             <button id="showblacklisted" class="topbutton">Toggle showing games you've blacklisted
@@ -139,7 +140,7 @@ class WebSite
                             <button id="showhelp" class="topbutton">FAQ & Terms</button>
                             <div class="loginsteam">
                                 <a href="?login">
-                                    <img class="steamlogin" src="./img/sits_small.png" width="154" height="23"
+                                    <img class="steamlogin" src="../../../img/sits_small.png" width="154" height="23"
                                          alt="Sign in through Steam"/>
                                 </a>
                             </div>
@@ -453,9 +454,9 @@ class WebSite
     public function display()
     {
         if ($this->steamUser) {
-            $this->header($this->steamUser->personaName . ' - Steam Completionist');
+            $this->header($this->steamUser->personaName . ' - SteamCompletionist.net');
         } else {
-            $this->header('Steam Completionist');
+            $this->header('SteamCompletionist.net');
         }
 
         $this->userBar();

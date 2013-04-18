@@ -847,7 +847,7 @@ $(document).ready(function () {
     loggeduser = $('#terms').attr('data-user');
 
     if (loggeduser > 0) {
-        tobeatnum = settings.attr('data-tobeat');
+        tobeatnum = parseInt(settings.attr('data-tobeat'), 10);
         considerbeaten = settings.attr('data-considerbeaten');
         hidequickstats = settings.attr('data-hidequickstats');
         hideaccountstats = settings.attr('data-hideaccountstats');
@@ -942,13 +942,13 @@ $(document).ready(function () {
                 target_slot = $('.game_box > .empty_game_box:first').parent(),
                 status;
 
-            if (considerbeaten) {
+            if (considerbeaten === '1') {
                 game = $('.list_box:not(.disabled,.blacklisted,.ui-state-disabled)').random();
             } else {
                 game = $('.list_box:not(.disabled,.beaten,.blacklisted,.ui-state-disabled)').random();
             }
 
-            if (game) {
+            if (game.length) {
                 loadData('savegameslot', game.children('.game_image').attr('data-gameid'), target_slot.attr('id').substr(9));
                 status = game.children('.game_image').attr('data-status');
 
@@ -966,6 +966,8 @@ $(document).ready(function () {
                 if (!$('.game_box > .empty_game_box').length) {
                     $(this).button('disable');
                 }
+            } else {
+                errorMessage('No eligible game found. :(');
             }
 
             $(this).removeClass('ui-state-focus');
@@ -1009,7 +1011,9 @@ $(document).ready(function () {
                     {
                         text: "Save & Close", click: function () {
                         var x,
-                            newtobeatnum = $('#numgames').val(),
+                            newtobeatnum = parseInt($('#numgames').val(), 10),
+                            gameid,
+                            box,
                             newconsiderbeaten = $('#considerbeaten').attr('checked') ? '1' : '0',
                             newhidequickstats = $('#hidequickstats').attr('checked') ? '1' : '0',
                             newhideaccountstats = $('#hideaccountstats').attr('checked') ? '1' : '0';
@@ -1023,17 +1027,23 @@ $(document).ready(function () {
                                     $('.game_boxes').append('<div id="game_box_' + x + '" class="game_box"><div class="empty_game_box"></div></div>');
                                     $('#game_box_' + x).setListDrop();
                                 }
+                                $('.pin').button('enable');
                                 $('#fillslot').button('enable');
                             } else {
                                 for (x = parseInt(tobeatnum, 10); x > newtobeatnum; x = x - 1) {
-                                    $('#game_box_' + x).remove();
+                                    box = $('#game_box_' + x);
+                                    gameid = box.children('.game_image').attr('data-gameid');
+                                    $('.list_boxes').find('#' + gameid).draggable('enable').on('click', '.game_image', addInfoCard);
+                                    box.remove();
                                 }
                                 if (!$('.game_box > .empty_game_box').length) {
                                     $('#fillslot').button('disable');
+                                    $('.pin').button('disable');
                                 }
                             }
 
                             tobeatnum = newtobeatnum;
+                            scrollerCheck();
                         }
 
                         if (considerbeaten !== newconsiderbeaten) {

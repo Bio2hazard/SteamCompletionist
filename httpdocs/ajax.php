@@ -20,7 +20,7 @@ session_start();
 ini_set('default_socket_timeout', 30);
 
 require 'Classes/Common/AutoLoader/AutoLoader.php';
-require '../../private/Config.php';
+require '../private/Config.php';
 
 $autoLoader = new Classes\Common\AutoLoader\AutoLoader();
 
