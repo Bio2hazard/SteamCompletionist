@@ -201,9 +201,9 @@ class SteamUser
                     $logo = $game->iconHash;
                 }
                 if ($game->community) {
-                    $returnArray[$game->appId] = array('appid' => $game->appId, 'name' => $game->name, 'minutestotal' => $game->minutesTotal, 'minutes2weeks' => $game->minutes2Weeks, 'achievper' => $game->achievementPercentage, 'imagehash' => $logo, 'numowned' => $game->numOwned, 'numbeaten' => $game->numBeaten, 'numblacklisted' => $game->numBlacklisted);
+                    $returnArray[$game->appId] = array('appid' => $game->appId, 'name' => $game->name, 'status' => $game->gameStatus, 'minutestotal' => $game->minutesTotal, 'minutes2weeks' => $game->minutes2Weeks, 'achievper' => $game->achievementPercentage, 'imagehash' => $logo, 'numowned' => $game->numOwned, 'numbeaten' => $game->numBeaten, 'numblacklisted' => $game->numBlacklisted);
                 } else {
-                    $returnArray[$game->appId] = array('appid' => $game->appId, 'name' => $game->name, 'minutestotal' => $game->minutesTotal, 'minutes2weeks' => $game->minutes2Weeks, 'imagehash' => $logo, 'numowned' => $game->numOwned, 'numbeaten' => $game->numBeaten, 'numblacklisted' => $game->numBlacklisted);
+                    $returnArray[$game->appId] = array('appid' => $game->appId, 'name' => $game->name, 'status' => $game->gameStatus, 'minutestotal' => $game->minutesTotal, 'minutes2weeks' => $game->minutes2Weeks, 'imagehash' => $logo, 'numowned' => $game->numOwned, 'numbeaten' => $game->numBeaten, 'numblacklisted' => $game->numBlacklisted);
                 }
             }
         }
