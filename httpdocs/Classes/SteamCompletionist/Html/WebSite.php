@@ -191,6 +191,8 @@ class WebSite
 
                             if ($game->gameStatus == 1) {
                                 $beaten .= ' beaten';
+                            }  else if(!$game->minutesTotal) {
+                                $beaten .= ' unplayed';
                             }
 
                             // Only attach data-achievper if it has community stats
@@ -243,7 +245,10 @@ class WebSite
                         $disabled = '';
                         if ($gameObject->gameStatus == 1) {
                             $disabled .= ' beaten';
+                        } else if(!$gameObject->minutesTotal) {
+                            $disabled .= ' unplayed';
                         }
+
                         if ($gameObject->gameSlot) {
                             $disabled .= ' disabled';
                         }

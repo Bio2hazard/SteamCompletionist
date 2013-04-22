@@ -272,6 +272,10 @@ div.blacklisted {
     border-color: #c80000;
 }
 
+div.unplayed {
+    border-color: #ff9933;
+}
+
 div.blacklisted > img.game_image {
     opacity: .35;
     filter: Alpha(Opacity=35);
@@ -314,6 +318,28 @@ div.blacklisted > img.game_image {
     font-family: Verdana;
 }
 
+.time_box {
+    position: absolute;
+    left: 0;
+    top: 57px;
+    background-color: rgba(0, 0, 0, 0.8);
+    height: 10px;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    cursor: pointer;
+    padding-top: 2px;
+    padding-right: 5px;
+    padding-left: 3px;
+    border-top-right-radius: 10px;
+    font-weight: bold;
+    font-size: 0.9em;
+    font-family: Verdana;
+    color:#ff9933;
+}
+
 span.stat_owned {
     color: #62a7e3;
 }
@@ -324,6 +350,10 @@ span.stat_beaten {
 
 span.stat_blacklisted {
     color: #c80000;
+}
+
+span.stat_unplayed {
+    color: #ff9933;
 }
 
 /* .act_btn is used by all the buttons in the info panels */
@@ -386,8 +416,6 @@ button.topbutton {
     margin-right: 5px;
     margin-top: 4px;
 }
-
-
 
 div.login > button.topbutton {
     margin-top: -3px;

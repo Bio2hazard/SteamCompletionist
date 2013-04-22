@@ -12,6 +12,9 @@
 var gamelock = [],
     showbeat = true,
     showblacklisted = true,
+    showcompleted = true,
+    showplayed = true,
+    showunplayed = true,
     loggeduser = 0,
     select,
     slider,
@@ -25,6 +28,19 @@ var gamelock = [],
     chart,
     chartData,
     chartOptions;
+
+String.prototype.getHHMM = function () {
+    "use strict";
+    var minutes_total    = parseInt(this, 10),
+        hours   = Math.floor(minutes_total / 60),
+        minutes = Math.floor(minutes_total - (hours * 60)),
+        time;
+
+    if (hours   < 10) {hours   = "0"+hours;}
+    if (minutes < 10) {minutes = "0"+minutes;}
+    time    = hours+':'+minutes;
+    return time;
+};
 
 // Used to display AJAX errors
 function errorMessage(message) {
@@ -249,7 +265,8 @@ $.fn.setListDrop = function () {
         drop: function (event, ui) {
             loadData('savegameslot', ui.draggable[0].id, this.id.substr(9));
             var gameid = $(this).find('.game_image').attr('data-gameid'),
-                status = $(ui.draggable).find('.game_image').attr('data-status');
+                status = $(ui.draggable).find('.game_image').attr('data-status'),
+                played = $(ui.draggable).find('.game_image').attr('data-minutestotal');
 
             if (gameid) {
                 $('.list_boxes').find('#' + gameid).draggable('enable').on('click', '.game_image', addInfoCard);
@@ -258,8 +275,10 @@ $.fn.setListDrop = function () {
             $(this).html(ui.draggable[0].innerHTML);
             if (status === '1') {
                 $(this).addClass('beaten');
+            } else if (played === '0') {
+                $(this).addClass('unplayed');
             } else {
-                $(this).removeClass('beaten');
+                $(this).removeClass('beaten unplayed');
             }
             $(ui.draggable).draggable('disable');
             $(ui.draggable).draggable('option', 'revertDuration', 0);
@@ -308,7 +327,8 @@ $.fn.setGameBoxDrop = function () {
         tolerance: 'pointer',
         drop: function (event, ui) {
             var gameid = $(ui.draggable).find('.game_image').attr('data-gameid'),
-                status = $(ui.draggable).find('.game_image').attr('data-status');
+                status = $(ui.draggable).find('.game_image').attr('data-status'),
+                played = $(ui.draggable).find('.game_image').attr('data-minutestotal');
             loadData('savegameslot', gameid, 0);
             $('.list_boxes').find('#' + gameid).draggable('enable').on('click', '.game_image', addInfoCard);
             $(ui.draggable).data('delete', '1');
@@ -317,6 +337,8 @@ $.fn.setGameBoxDrop = function () {
             $(ui.draggable).append('<div class="empty_game_box"></div>');
             if (status === '1') {
                 $(ui.draggable).removeClass('beaten');
+            }  else if (played === '0') {
+                $(ui.draggable).removeClass('unplayed');
             }
             $('.pin').button('enable');
             $('#fillslot').button('enable');
@@ -348,6 +370,8 @@ $.fn.infoCardDisable = function () {
         $(this).children('.achiev_bar').remove();
         //noinspection JSValidateTypes
         $(this).children('.stat_box').remove();
+        //noinspection JSValidateTypes
+        $(this).children('.time_box').remove();
     });
 };
 
@@ -362,6 +386,8 @@ $.fn.infoCardHardDisable = function () {
     $(this).children('.achiev_bar').remove();
     //noinspection JSValidateTypes
     $(this).children('.stat_box').remove();
+    //noinspection JSValidateTypes
+    $(this).children('.time_box').remove();
 };
 
 // jQuery extension to add tooltips to things
@@ -465,18 +491,20 @@ $.fn.activeInfoCard = function () {
     this.each(function () {
         var gameid = $(this).attr('data-gameid'),
             status = $(this).attr('data-status'),
+            played = $(this).attr('data-minutestotal'),
             numbeaten = parseInt($(this).attr('data-numbeaten'), 10),
             numblacklisted = parseInt($(this).attr('data-numblacklisted'), 10),
             numowned = parseInt($(this).attr('data-numowned'), 10) - (numbeaten + numblacklisted);
 
         if (status === '1') {
-            $(this).parent().append('<button class="act_btn unpin">Remove from my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Game is already marked as beat</button><button class="act_btn blacklist">Game is already marked as beat</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
+            $(this).parent().append('<button class="act_btn unpin">Remove from my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Game is already marked as beat</button><button class="act_btn blacklist">Game is already marked as beat</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="time_box" title="Quick Stats: Total time you\'ve spent playing this game"><span>' + played.getHHMM() + '</span></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
         } else {
-            $(this).parent().append('<button class="act_btn unpin">Remove from my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Mark game as beat</button><button class="act_btn blacklist">Blacklist this game</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
+            $(this).parent().append('<button class="act_btn unpin">Remove from my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Mark game as beat</button><button class="act_btn blacklist">Blacklist this game</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="time_box" title="Quick Stats: Total time you\'ve spent playing this game"><span>' + played.getHHMM() + '</span></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
         }
 
         if (hidequickstats === '1') {
             $('.stat_box').css('display', 'none');
+            $('.time_box').css('display', 'none');
         }
 
         $(this).siblings('.unpin').button({
@@ -487,6 +515,7 @@ $.fn.activeInfoCard = function () {
         }).click(function () {
                 var gameid = $(this).siblings('.game_image').attr('data-gameid'),
                     status = $(this).siblings('.game_image').attr('data-status'),
+                    played = $(this).siblings('.game_image').attr('data-minutestotal'),
                     parent = $(this).parent();
                 loadData('savegameslot', gameid, 0);
                 $('.list_boxes').find('#' + gameid).draggable('enable').on('click', '.game_image', addInfoCard);
@@ -504,6 +533,8 @@ $.fn.activeInfoCard = function () {
                 parent.setListDrop();
                 if (status === '1') {
                     parent.removeClass('beaten');
+                } else if (played === '0') {
+                    parent.removeClass('unplayed');
                 }
             });
 
@@ -515,10 +546,11 @@ $.fn.activeInfoCard = function () {
         }).click(function () {
                 var gameid = $(this).siblings('.game_image').attr('data-gameid'),
                     numblacklisted = parseInt($(this).siblings('.game_image').attr('data-numblacklisted'), 10),
+                    played = $(this).siblings('.game_image').attr('data-minutestotal'),
                     parent = $(this).parent(),
                     listboxes = $('.list_boxes');
                 loadData('savegamestatus', gameid, 2);
-                listboxes.find('#' + gameid).removeClass('ui-state-disabled').addClass('blacklisted').on('click', '.game_image', addInfoCard).children('.game_image').attr('data-status', '2').attr('data-numblacklisted', numblacklisted + 1);
+                listboxes.find('#' + gameid).removeClass('ui-state-disabled unplayed').addClass('blacklisted').on('click', '.game_image', addInfoCard).children('.game_image').attr('data-status', '2').attr('data-numblacklisted', numblacklisted + 1);
                 parent.empty();
                 parent.append('<div class="empty_game_box"></div>');
                 $('.pin').button('enable');
@@ -531,6 +563,9 @@ $.fn.activeInfoCard = function () {
                 });
                 parent.draggable('destroy');
                 parent.setListDrop();
+                if(played === '0') {
+                    parent.removeClass('unplayed');
+                }
                 if (!showblacklisted) {
                     listboxes.find('#' + gameid).fadeOut("slow");
                 }
@@ -545,6 +580,7 @@ $.fn.activeInfoCard = function () {
         }).click(function () {
                 var gameid = $(this).siblings('.game_image').attr('data-gameid'),
                     numbeaten = parseInt($(this).siblings('.game_image').attr('data-numbeaten'), 10),
+                    played = $(this).siblings('.game_image').attr('data-minutestotal'),
                     parent = $(this).parent(),
                     listboxes = $('.list_boxes');
                 loadData('savegamestatus', gameid, 1);
@@ -561,6 +597,9 @@ $.fn.activeInfoCard = function () {
                 });
                 parent.draggable('destroy');
                 parent.setListDrop();
+                if(played === '0') {
+                    parent.removeClass('unplayed');
+                }
                 if (!showbeat) {
                     listboxes.find('#' + gameid).fadeOut("slow");
                 }
@@ -618,6 +657,7 @@ addInfoCard = function (event) {
     var target = event.target,
         gameid,
         status,
+        played,
         numbeaten,
         numblacklisted,
         numowned;
@@ -629,21 +669,23 @@ addInfoCard = function (event) {
 
         gameid = $(target).attr('data-gameid');
         status = $(target).attr('data-status');
+        played = $(target).attr('data-minutestotal');
         numbeaten = parseInt($(target).attr('data-numbeaten'), 10);
         numblacklisted = parseInt($(target).attr('data-numblacklisted'), 10);
         numowned = parseInt($(target).attr('data-numowned'), 10) - (numbeaten + numblacklisted);
 
         // Blacklisted game:
         if (status === '2') {
-            $(target).parent().append('<button class="act_btn pin">Cannot add a blacklisted game</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Mark game as beat</button><button class="act_btn blacklist">Un-Blacklist this game</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
+            $(target).parent().append('<button class="act_btn pin">Cannot add a blacklisted game</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Mark game as beat</button><button class="act_btn blacklist">Un-Blacklist this game</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="time_box" title="Quick Stats: Total time you\'ve spent playing this game"><span>' + played.getHHMM() + '</span></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
         } else if (status === '1') {
-            $(target).parent().append('<button class="act_btn pin">Add to my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Game is already marked as beat</button><button class="act_btn blacklist">Game is already marked as beat</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
+            $(target).parent().append('<button class="act_btn pin">Add to my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Game is already marked as beat</button><button class="act_btn blacklist">Game is already marked as beat</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="time_box" title="Quick Stats: Total time you\'ve spent playing this game"><span>' + played.getHHMM() + '</span></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
         } else {
-            $(target).parent().append('<button class="act_btn pin">Add to my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Mark game as beat</button><button class="act_btn blacklist">Blacklist this game</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
+            $(target).parent().append('<button class="act_btn pin">Add to my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Mark game as beat</button><button class="act_btn blacklist">Blacklist this game</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="time_box" title="Quick Stats: Total time you\'ve spent playing this game"><span>' + played.getHHMM() + '</span></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
         }
 
         if (hidequickstats === '1') {
             $('.stat_box').css('display', 'none');
+            $('.time_box').css('display', 'none');
         }
 
         $(target).siblings('.pin').button({
@@ -659,6 +701,8 @@ addInfoCard = function (event) {
                 target_slot.html(game.html());
                 if (status === '1') {
                     target_slot.addClass('beaten');
+                } else if (played === '0') {
+                    target_slot.addClass('unplayed');
                 }
                 game.draggable('disable');
                 game.off('click', '.game_image', addInfoCard);
@@ -692,6 +736,9 @@ addInfoCard = function (event) {
                     game.infoCardHardDisable();
                     game.children('.game_image').trigger('click');
                     game.removeAttr('style');
+                    if(played === '0') {
+                        game.addClass('unplayed');
+                    }
                 } else {
                     // Blacklist
                     loadData('savegamestatus', gameid, 2);
@@ -699,7 +746,7 @@ addInfoCard = function (event) {
                     game.children('.game_image').attr('data-numblacklisted', numblacklisted + 1);
                     game.draggable('disable');
                     game.addClass('blacklisted');
-                    game.removeClass('ui-state-disabled');
+                    game.removeClass('ui-state-disabled unplayed');
                     game.infoCardHardDisable();
                     game.children('.game_image').trigger('click');
                     if (!showblacklisted) {
@@ -721,7 +768,7 @@ addInfoCard = function (event) {
                 game.children('.game_image').attr('data-status', 1);
                 game.children('.game_image').attr('data-numbeaten', numbeaten + 1);
                 game.draggable('enable');
-                game.removeClass('blacklisted');
+                game.removeClass('blacklisted unplayed');
                 game.addClass('beaten');
                 game.removeClass('ui-state-disabled');
                 game.infoCardHardDisable();
@@ -786,6 +833,65 @@ function scrollerCheck() {
     }
 }
 
+function chartSelectHandler() {
+    "use strict";
+    var listbox = $('.list_box > .game_image'),
+        selectedItem = chart.getSelection()[0],
+        selectedId;
+
+    if (selectedItem) {
+        selectedId = selectedItem.row;
+        switch(selectedId)
+        {
+            case 0: // 100% Completed
+            break;
+
+            case 1: // Beaten
+                if (showbeat) {
+                    showbeat = false;
+                    listbox.filter('[data-status=1]').parent().fadeOut("slow");
+                } else {
+                    showbeat = true;
+                    listbox.filter('[data-status=1]').parent().fadeIn("slow");
+                }
+                $('#showbeat').toggleClass('focus');
+            break;
+
+            case 2: // Played
+                if (showplayed) {
+                    showplayed = false;
+                    listbox.filter('[data-minutestotal!=0][data-status=0]').parent().fadeOut("slow");
+                } else {
+                    showplayed = true;
+                    listbox.filter('[data-minutestotal!=0][data-status=0]').parent().fadeIn("slow");
+                }
+            break;
+
+            case 3: // Unplayed
+                if (showunplayed) {
+                    showunplayed = false;
+                    listbox.filter('[data-minutestotal=0][data-status=0]').parent().fadeOut("slow");
+                } else {
+                    showunplayed = true;
+                    listbox.filter('[data-minutestotal=0][data-status=0]').parent().fadeIn("slow");
+                }
+            break;
+
+            case 4: // Blacklisted
+                if (showblacklisted) {
+                    showblacklisted = false;
+                    listbox.filter('[data-status=2]').parent().fadeOut("slow");
+                } else {
+                    showblacklisted = true;
+                    listbox.filter('[data-status=2]').parent().fadeIn("slow");
+                }
+                $('#showblacklisted').toggleClass('focus');
+            break;
+        }
+        chart.setSelection();
+    }
+}
+
 updateChart = function () {
     "use strict";
     var listbox = $('.list_box > .game_image');
@@ -833,6 +939,8 @@ function newChart() {
 
     // Instantiate and draw our chart, passing in some options.
     chart = new google.visualization.PieChart(document.getElementById('account_stats'));
+    google.visualization.events.addListener(chart, 'select', chartSelectHandler);
+
     chart.draw(chartData, chartOptions);
 }
 
@@ -900,12 +1008,13 @@ $(document).ready(function () {
             }
         }).addClass('focus')
         .click(function () {
+            var listbox = $('.list_box > .game_image');
             if (showbeat) {
                 showbeat = false;
-                $('.list_box > img[data-status="1"]').parent().fadeOut("slow");
+                listbox.filter('[data-status=1]').parent().fadeOut("slow");
             } else {
                 showbeat = true;
-                $('.list_box > img[data-status="1"]').parent().fadeIn("slow");
+                listbox.filter('[data-status=1]').parent().fadeIn("slow");
             }
             $(this).toggleClass('focus');
             $(this).removeClass('ui-state-focus');
@@ -919,12 +1028,13 @@ $(document).ready(function () {
             }
         }).addClass('focus')
         .click(function () {
+            var listbox = $('.list_box > .game_image');
             if (showblacklisted) {
                 showblacklisted = false;
-                $('.list_box > img[data-status="2"]').parent().fadeOut("slow");
+                listbox.filter('[data-status=2]').parent().fadeOut("slow");
             } else {
                 showblacklisted = true;
-                $('.list_box > img[data-status="2"]').parent().fadeIn("slow");
+                listbox.filter('[data-status=2]').parent().fadeIn("slow");
             }
             $(this).toggleClass('focus');
             $(this).removeClass('ui-state-focus');
@@ -940,7 +1050,8 @@ $(document).ready(function () {
         .click(function () {
             var game,
                 target_slot = $('.game_box > .empty_game_box:first').parent(),
-                status;
+                status,
+                played;
 
             if (considerbeaten === '1') {
                 game = $('.list_box:not(.disabled,.blacklisted,.ui-state-disabled)').random();
@@ -951,11 +1062,15 @@ $(document).ready(function () {
             if (game.length) {
                 loadData('savegameslot', game.children('.game_image').attr('data-gameid'), target_slot.attr('id').substr(9));
                 status = game.children('.game_image').attr('data-status');
+                played = game.children('.game_image').attr('data-minutestotal');
+
 
                 game.infoCardHardDisable();
                 target_slot.html(game.html());
                 if (status === '1') {
                     target_slot.addClass('beaten');
+                } else if(played === '0') {
+                    target_slot.addClass('unplayed');
                 }
                 game.draggable('disable');
                 game.off('click', '.game_image', addInfoCard);
@@ -1057,8 +1172,10 @@ $(document).ready(function () {
                             hidequickstats = newhidequickstats;
                             if (hidequickstats === '1') {
                                 $('.stat_box').css('display', 'none');
+                                $('.time_box').css('display', 'none');
                             } else {
                                 $('.stat_box').css('display', '');
+                                $('.time_box').css('display', '');
                             }
                         }
 
