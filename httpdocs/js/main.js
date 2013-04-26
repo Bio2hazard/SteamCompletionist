@@ -957,12 +957,16 @@ newStatsChart = function() {
 
     $('#stats').empty().append(
         '<p><br>' +
+            '<div id="statsmosttimechart" class="statsChart"></div>' +
+            '<div id="statsrecenttimechart" class="statsChart"></div>' +
+            '<div id="statsleastplayedchart" class="statsChart"></div>' +
             '<div id="statsownedchart" class="statsChart"></div>' +
             '<div id="statsbeatenchart" class="statsChart"></div>' +
             '<div id="statsblacklistedchart" class="statsChart"></div>' +
-            '<div id="statsleastplayedchart" class="statsChart"></div>' +
-            '<div>Please keep in mind that these stats are not entirely accurate.' +
-            'They only include users of this website, and user stats only get refreshed when they visit the website.' +
+            '<div id="statsunbeatenchart" class="statsChart"></div>' +
+            //'<div id="statsleastownedchart" class="statsChart"></div>' +
+            '<div>Please keep in mind that these stats are not entirely accurate.<br>' +
+            'They only include users of this website, and user stats only get refreshed when they visit the website.<br>' +
             'In short: Inactive people and people who don\'t update / categorize their games affect these stats.</div>' +
         '</p>');
 
@@ -977,12 +981,28 @@ newStatsChart = function() {
         statsBlacklistedChartOptions,
         statsLeastPlayedChart,
         statsLeastPlayedChartData,
-        statsLeastPlayedChartOptions;
+        statsLeastPlayedChartOptions,
+        statsUnbeatenChart,
+        statsUnbeatenChartData,
+        statsUnbeatenChartOptions,
+        //statsLeastOwnedChart,
+        //statsLeastOwnedChartData,
+        //statsLeastOwnedChartOptions,
+        statsMostTimeChart,
+        statsMostTimeChartData,
+        statsMostTimeChartOptions,
+        statsRecentTimeChart,
+        statsRecentTimeChartData,
+        statsRecentTimeChartOptions;
 
     statsOwnedChartData = new google.visualization.DataTable(statsData[1]);
     statsBeatenChartData = new google.visualization.DataTable(statsData[2]);
     statsBlacklistedChartData = new google.visualization.DataTable(statsData[3]);
     statsLeastPlayedChartData = new google.visualization.DataTable(statsData[4]);
+    statsUnbeatenChartData = new google.visualization.DataTable(statsData[5]);
+    //statsLeastOwnedChartData = new google.visualization.DataTable(statsData[6]);
+    statsMostTimeChartData = new google.visualization.DataTable(statsData[7]);
+    statsRecentTimeChartData = new google.visualization.DataTable(statsData[8]);
 
     statsOwnedChartOptions = {
         'chartArea':{'left':150, 'top':30, 'width':'300', 'height':'440'},
@@ -1028,16 +1048,67 @@ newStatsChart = function() {
         'legend':{'position':'none'}
     };
 
+    statsUnbeatenChartOptions = {
+        'chartArea':{'left':150, 'top':30, 'width':'300', 'height':'440'},
+        'hAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':15}},
+        'vAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':12}},
+        'title': 'Most owned, least beaten games',
+        'titleTextStyle': {'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':13},
+        'colors': ['#0078A3'],
+        'backgroundColor': '#000',
+        'legend':{'position':'none'}
+    };
+
+//    statsLeastOwnedChartOptions = {
+//        'chartArea':{'left':150, 'top':30, 'width':'300', 'height':'440'},
+//        'hAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':15}},
+//        'vAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':12}},
+//        'title': 'Least owned games',
+//        'titleTextStyle': {'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':13},
+//        'colors': ['#0078A3'],
+//        'backgroundColor': '#000',
+//        'legend':{'position':'none'}
+//    };
+
+    statsMostTimeChartOptions = {
+        'chartArea':{'left':150, 'top':30, 'width':'300', 'height':'440'},
+        'hAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':15}},
+        'vAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':12}},
+        'title': 'Most time spent playing',
+        'titleTextStyle': {'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':15},
+        'colors': ['#53439B'],
+        'backgroundColor': '#000',
+        'legend':{'position':'none'}
+    };
+
+    statsRecentTimeChartOptions = {
+        'chartArea':{'left':150, 'top':30, 'width':'300', 'height':'440'},
+        'hAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':15}},
+        'vAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':12}},
+        'title': 'Most time spent playing ( last 2 weeks )',
+        'titleTextStyle': {'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':14},
+        'colors': ['#8E439B'],
+        'backgroundColor': '#000',
+        'legend':{'position':'none'}
+    };
+
     statsOwnedChart = new google.visualization.BarChart(document.getElementById('statsownedchart'));
     statsBeatenChart = new google.visualization.BarChart(document.getElementById('statsbeatenchart'));
     statsBlacklistedChart = new google.visualization.BarChart(document.getElementById('statsblacklistedchart'));
     statsLeastPlayedChart = new google.visualization.BarChart(document.getElementById('statsleastplayedchart'));
-
+    statsUnbeatenChart = new google.visualization.BarChart(document.getElementById('statsunbeatenchart'));
+    //statsLeastOwnedChart = new google.visualization.BarChart(document.getElementById('statsleastownedchart'));
+    statsMostTimeChart = new google.visualization.BarChart(document.getElementById('statsmosttimechart'));
+    statsRecentTimeChart = new google.visualization.BarChart(document.getElementById('statsrecenttimechart'));
 
     statsOwnedChart.draw(statsOwnedChartData, statsOwnedChartOptions);
     statsBeatenChart.draw(statsBeatenChartData, statsBeatenChartOptions);
     statsBlacklistedChart.draw(statsBlacklistedChartData, statsBlacklistedChartOptions);
     statsLeastPlayedChart.draw(statsLeastPlayedChartData, statsLeastPlayedChartOptions);
+    statsUnbeatenChart.draw(statsUnbeatenChartData, statsUnbeatenChartOptions);
+    //statsLeastOwnedChart.draw(statsLeastOwnedChartData, statsLeastOwnedChartOptions);
+    statsMostTimeChart.draw(statsMostTimeChartData, statsMostTimeChartOptions);
+    statsRecentTimeChart.draw(statsRecentTimeChartData, statsRecentTimeChartOptions);
 };
 
 
@@ -1327,7 +1398,7 @@ $(document).ready(function () {
             stats.dialog({
                 draggable: true,
                 title: 'Stats',
-                width: '80%',
+                width: '95%',
                 height: 800,
                 modal: true,
                 buttons: [

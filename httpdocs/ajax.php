@@ -210,6 +210,10 @@ try {
                     2 => 'beaten',
                     3 => 'blacklisted',
                     4 => 'leastplayed',
+                    5 => 'unbeaten',
+                    6 => 'leastowned',
+                    7 => 'mosttime',
+                    8 => 'most2weeks',
                 );
 
                 $categoryLabel = array(
@@ -217,6 +221,10 @@ try {
                     2 => 'Beaten by',
                     3 => 'Blacklisted by',
                     4 => 'Utterly neglected by',
+                    5 => 'Game is not impressed by',
+                    6 => 'Owned by',
+                    7 => 'Days devoured',
+                    8 => 'Recent days devoured',
                 );
 
                 $db->prepare('SELECT `steamGameDB`.`name`, `statsDB`.`category`, `statsDB`.`value` FROM `statsDB`, `steamGameDB` WHERE `statsDB`.`appid` = `steamGameDB`.`appid` ORDER BY `statsDB`.`category` ASC, `statsDB`.`id` ASC');
@@ -229,19 +237,21 @@ try {
                 if ($result) {
                     // Stats
                     do {
-                        if($result['category'] !== $lastCategory) {
-                            $return['stats'][$result['category']]['cols'] = array(
-                                array('id' => 'game', 'label' => 'Game Name', 'type' => 'string'),
-                                array('id' => $categoryID[$result['category']], 'label' => $categoryLabel[$result['category']], 'type' => 'number')
-                            );
-                            $lastCategory = $result['category'];
+                        if( isset($categoryID[$result['category']]) && isset($categoryLabel[$result['category']])) {
+                            if($result['category'] !== $lastCategory) {
+                                $return['stats'][$result['category']]['cols'] = array(
+                                    array('id' => 'game', 'label' => 'Game Name', 'type' => 'string'),
+                                    array('id' => $categoryID[$result['category']], 'label' => $categoryLabel[$result['category']], 'type' => 'number')
+                                );
+                                $lastCategory = $result['category'];
+                            }
+
+                            $temp = array();
+                            $temp[] = array('v' => (string)$result['name']);
+                            $temp[] = array('v' => (int)$result['value']);
+
+                            $return['stats'][$result['category']]['rows'][] = array('c' => $temp);
                         }
-
-                        $temp = array();
-                        $temp[] = array('v' => (string)$result['name']);
-                        $temp[] = array('v' => (int)$result['value']);
-
-                        $return['stats'][$result['category']]['rows'][] = array('c' => $temp);
                     } while ($result = $db->fetch());
                     $logger->addEntry('Grabbed stats from database.');
                 } else {
