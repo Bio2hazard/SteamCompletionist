@@ -190,7 +190,7 @@ class SteamGame
             }
             $percentage = round(($achieved / $total) * 100);
             $this->logger->addEntry('Achievements for ' . $achievements->gameName . ' loaded successfully. ');
-        } elseif ((isset($achievements->success) && $achievements->success === false || ($achievements->success === true && !isset($achievements->achievements)))) {
+        } elseif (isset($achievements->success) && ($achievements->success === false || ($achievements->success === true && !isset($achievements->achievements)))) {
             $curlSuccess = true;
             $error = (isset($achievements->error)) ? $achievements->error : 'No achievements in the list.';
             $this->logger->addEntry('Achievements for ' . $this->appId . ' could not be loaded: ' . $error);

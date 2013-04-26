@@ -9,9 +9,6 @@ if (substr($_SERVER['HTTP_HOST'], 0, 4) !== 'www.') {
     header('Location: http://www.' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 }
 
-// To be disabled once the website is entirely done
-error_reporting(E_ALL | E_STRICT);
-
 // Set up the session ( SGS = Steam Game Session )
 session_name('SGS');
 session_start();
@@ -205,6 +202,52 @@ try {
             $steamUser->loadLocalUserInfo();
             $steamUser->setHideAccountStats($newHideAccountStats);
 
+            break;
+
+        case 'stats':
+                $categoryID = array(
+                    1 => 'owned',
+                    2 => 'beaten',
+                    3 => 'blacklisted',
+                    4 => 'leastplayed',
+                );
+
+                $categoryLabel = array(
+                    1 => 'Owned by',
+                    2 => 'Beaten by',
+                    3 => 'Blacklisted by',
+                    4 => 'Utterly neglected by',
+                );
+
+                $db->prepare('SELECT `steamGameDB`.`name`, `statsDB`.`category`, `statsDB`.`value` FROM `statsDB`, `steamGameDB` WHERE `statsDB`.`appid` = `steamGameDB`.`appid` ORDER BY `statsDB`.`category` ASC, `statsDB`.`id` ASC');
+                $db->execute();
+
+                $lastCategory = 0;
+                $count = 0;
+
+                $result = $db->fetch();
+                if ($result) {
+                    // Stats
+                    do {
+                        if($result['category'] !== $lastCategory) {
+                            $return['stats'][$result['category']]['cols'] = array(
+                                array('id' => 'game', 'label' => 'Game Name', 'type' => 'string'),
+                                array('id' => $categoryID[$result['category']], 'label' => $categoryLabel[$result['category']], 'type' => 'number')
+                            );
+                            $lastCategory = $result['category'];
+                        }
+
+                        $temp = array();
+                        $temp[] = array('v' => (string)$result['name']);
+                        $temp[] = array('v' => (int)$result['value']);
+
+                        $return['stats'][$result['category']]['rows'][] = array('c' => $temp);
+                    } while ($result = $db->fetch());
+                    $logger->addEntry('Grabbed stats from database.');
+                } else {
+                    // No Stats found
+                    throw new Exception('Grabbing stats failed.');
+                }
             break;
 
         default:

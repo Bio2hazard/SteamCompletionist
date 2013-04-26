@@ -530,7 +530,7 @@ button.focus > span.ui-icon {
     float: right;
 }
 
-#error, #terms, #settings {
+#error, #terms, #settings, #stats {
     display: none;
 }
 
@@ -587,4 +587,10 @@ button.focus > span.ui-icon {
     border-width: 13px;
     top: 50%;
     margin-top: -13px;
+}
+
+div.statsChart {
+    height: 500px;
+    width: 500px;
+    display: inline-block;
 }

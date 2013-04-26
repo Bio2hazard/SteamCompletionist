@@ -39,7 +39,7 @@ class AutoLoader
         }
         $fileName .= str_replace('_', DIRECTORY_SEPARATOR, $className) . '.php';
         if (!@include $fileName) {
-            throw new Exception('AutoLoader failed to load "' . $fileName . '"');
+            throw new Exception('AutoLoader failed to load "' . getcwd() . DIRECTORY_SEPARATOR . $fileName . '"');
         }
     }
 }

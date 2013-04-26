@@ -23,11 +23,13 @@ var gamelock = [],
     hidequickstats,
     hideaccountstats,
     addInfoCard,
+    newStatsChart,
     stats = [],
     updateChart,
     chart,
     chartData,
-    chartOptions;
+    chartOptions,
+    statsData;
 
 String.prototype.getHHMM = function () {
     "use strict";
@@ -101,6 +103,11 @@ function loadData(mode, gameid, value) {
                     errorMessage(data.errorlog);
                 }
 
+                if (data.stats !== undefined) {
+                    statsData = data.stats;
+                    google.load('visualization', '1.0', {'packages':['corechart'], 'callback' : newStatsChart});
+                }
+
                 if (data.steamuser !== undefined) {
                     $('.avatar').removeClass().addClass('avatar' + data.steamuser['class']).attr("src", data.steamuser.avatar);
                     $('.statustext').removeClass().addClass('statustext' + data.steamuser['class']).html(data.steamuser.name + '<br/>' + data.steamuser.status + '<br/><span id="points">' + data.steamuser.points + '</span>  Points');
@@ -151,6 +158,7 @@ function loadData(mode, gameid, value) {
                     $.each(data.deletelist, function () {
                         $('.game_box > .game_image[data-gameid="' + this.appid + '"]').parent().draggable('destroy').empty().append('<div class="empty_game_box"></div>');
                         $('#' + this.appid).remove();
+                        updateChart();
                     });
                 }
                 if (data.gameachiev !== undefined) {
@@ -944,6 +952,94 @@ function newChart() {
     chart.draw(chartData, chartOptions);
 }
 
+newStatsChart = function() {
+    "use strict";
+
+    $('#stats').empty().append(
+        '<p><br>' +
+            '<div id="statsownedchart" class="statsChart"></div>' +
+            '<div id="statsbeatenchart" class="statsChart"></div>' +
+            '<div id="statsblacklistedchart" class="statsChart"></div>' +
+            '<div id="statsleastplayedchart" class="statsChart"></div>' +
+            '<div>Please keep in mind that these stats are not entirely accurate.' +
+            'They only include users of this website, and user stats only get refreshed when they visit the website.' +
+            'In short: Inactive people and people who don\'t update / categorize their games affect these stats.</div>' +
+        '</p>');
+
+    var statsOwnedChart,
+        statsOwnedChartData,
+        statsOwnedChartOptions,
+        statsBeatenChart,
+        statsBeatenChartData,
+        statsBeatenChartOptions,
+        statsBlacklistedChart,
+        statsBlacklistedChartData,
+        statsBlacklistedChartOptions,
+        statsLeastPlayedChart,
+        statsLeastPlayedChartData,
+        statsLeastPlayedChartOptions;
+
+    statsOwnedChartData = new google.visualization.DataTable(statsData[1]);
+    statsBeatenChartData = new google.visualization.DataTable(statsData[2]);
+    statsBlacklistedChartData = new google.visualization.DataTable(statsData[3]);
+    statsLeastPlayedChartData = new google.visualization.DataTable(statsData[4]);
+
+    statsOwnedChartOptions = {
+        'chartArea':{'left':150, 'top':30, 'width':'300', 'height':'440'},
+        'hAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':15}},
+        'vAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':12}},
+        'title': 'Most Owned Games',
+        'titleTextStyle': {'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':15},
+        'colors': ['#62A7E3'],
+        'backgroundColor': '#000',
+        'legend':{'position':'none'}
+    };
+
+    statsBeatenChartOptions = {
+        'chartArea':{'left':150, 'top':30, 'width':'300', 'height':'440'},
+        'hAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':15}},
+        'vAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':12}},
+        'title': 'Most Beaten Games',
+        'titleTextStyle': {'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':15},
+        'colors': ['#8BC53F'],
+        'backgroundColor': '#000',
+        'legend':{'position':'none'}
+    };
+
+    statsBlacklistedChartOptions = {
+        'chartArea':{'left':150, 'top':30, 'width':'300', 'height':'440'},
+        'hAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':15}},
+        'vAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':12}},
+        'title': 'Most Blacklisted Games',
+        'titleTextStyle': {'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':15},
+        'colors': ['#C80000'],
+        'backgroundColor': '#000',
+        'legend':{'position':'none'}
+    };
+
+    statsLeastPlayedChartOptions = {
+        'chartArea':{'left':150, 'top':30, 'width':'300', 'height':'440'},
+        'hAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':15}},
+        'vAxis':{'textStyle':{'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':12}},
+        'title': 'Games that havn\'t even been booted up once',
+        'titleTextStyle': {'color':'#B3B3B3', 'fontName':'Arial', 'fontSize':13},
+        'colors': ['#FF9933'],
+        'backgroundColor': '#000',
+        'legend':{'position':'none'}
+    };
+
+    statsOwnedChart = new google.visualization.BarChart(document.getElementById('statsownedchart'));
+    statsBeatenChart = new google.visualization.BarChart(document.getElementById('statsbeatenchart'));
+    statsBlacklistedChart = new google.visualization.BarChart(document.getElementById('statsblacklistedchart'));
+    statsLeastPlayedChart = new google.visualization.BarChart(document.getElementById('statsleastplayedchart'));
+
+
+    statsOwnedChart.draw(statsOwnedChartData, statsOwnedChartOptions);
+    statsBeatenChart.draw(statsBeatenChartData, statsBeatenChartOptions);
+    statsBlacklistedChart.draw(statsBlacklistedChartData, statsBlacklistedChartOptions);
+    statsLeastPlayedChart.draw(statsLeastPlayedChartData, statsLeastPlayedChartOptions);
+};
+
 
 $(document).ready(function () {
     "use strict";
@@ -1108,7 +1204,6 @@ $(document).ready(function () {
             $('.ui-tooltip').remove();
         });
 
-    // Opens the settings menu, currently not done
     $('#showsettings')
         .button({
             text: false,
@@ -1215,6 +1310,34 @@ $(document).ready(function () {
             });
         });
 
+    $('#showstats')
+        .button({
+            text: false,
+            icons: {
+                primary: 'ui-icon-clipboard'
+            }
+        })
+        .click(function () {
+            var stats = $('#stats');
+
+            if(statsData === undefined) {
+                stats.empty().append('<p><br><img src="img/loading.gif" alt="Loading" height="16" width="16"><br>Stats are loading, please wait.</p>');
+                loadData('stats', 0, 0);
+            }
+            stats.dialog({
+                draggable: true,
+                title: 'Stats',
+                width: '80%',
+                height: 800,
+                modal: true,
+                buttons: [
+                    {
+                        text: "Close", click: function () {
+                        $(this).dialog("close");
+                    }}
+               ]
+            });
+        });
 
     $('#logout')
         .button({

@@ -51,14 +51,14 @@ class WebSite
         <head>
             <meta charset="utf-8"/>
             <title><?= $title ?></title>
-            <link rel='icon' href='../../../favicon.png' type='image/png' />
-            <link rel="stylesheet" href="../../../css/reset.css" type="text/css"/>
-            <link rel="stylesheet" href="../../../css/jquery-ui-1.10.0.custom.min.css" type="text/css"/>
-            <link rel="stylesheet" href="../../../css/main.css" type="text/css"/>
+            <link rel='icon' href='favicon.png' type='image/png' />
+            <link rel="stylesheet" href="css/reset.css?<?=filectime('css/reset.css')?>" type="text/css"/>
+            <link rel="stylesheet" href="css/jquery-ui-1.10.0.custom.min.css?<?=filectime('css/jquery-ui-1.10.0.custom.min.css')?>" type="text/css"/>
+            <link rel="stylesheet" href="css/main.css?<?=filectime('css/main.css')?>" type="text/css"/>
             <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-            <script type="text/javascript" src="../../../js/jquery-1.8.3.min.js"></script>
-            <script type="text/javascript" src="../../../js/jquery-ui-1.10.0.custom.min.js"></script>
-            <script type="text/javascript" src="../../../js/main.js"></script>
+            <script type="text/javascript" src="js/jquery-1.8.3.min.js?<?=filectime('js/jquery-1.8.3.min.js')?>"></script>
+            <script type="text/javascript" src="js/jquery-ui-1.10.0.custom.min.js?<?=filectime('js/jquery-ui-1.10.0.custom.min.js')?>"></script>
+            <script type="text/javascript" src="js/main.js?<?=filectime('js/main.js')?>"></script>
             <!--[if IE]>
             <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
             <!--[if lt IE 9]>
@@ -108,7 +108,7 @@ class WebSite
                         $userdata = $this->steamUser->getUserData();
                         ?>
                         <div class="logged">
-                            <p class="loader"><img src="../../../img/loading.gif" alt="Loading" height="16" width="16"><br/>Working...
+                            <p class="loader"><img src="../../../img/loading.gif" alt="Loading" height="16" width="16"><br>Working...
                             </p>
                             <button id="showbeat" class="topbutton">Toggle showing games you've beaten</button>
                             <button id="showblacklisted" class="topbutton">Toggle showing games you've blacklisted
@@ -116,6 +116,7 @@ class WebSite
                             <button id="fillslot" class="topbutton">Add random game</button>
                             <button id="refresh" class="topbutton">Refresh</button>
                             <button id="showsettings" class="topbutton">Settings</button>
+                            <button id="showstats" class="topbutton">Stats</button>
                             <button id="showhelp" class="topbutton">FAQ & Terms</button>
                             <button id="logout" class="topbutton">Logout</button>
                             <div id="userdata">
@@ -125,9 +126,9 @@ class WebSite
                                     width="32" height="32" alt="Steam avatar"/>
                                 <span
                                     class="statustext<?= $userdata['class'] ?>"><?= $userdata['name'] ?>
-                                    <br/>
+                                    <br>
                                     <?= $userdata['status'] ?>
-                                    <br/>
+                                    <br>
                                     <span id="points"><?= $this->steamUser->points ?></span> Points
                                 </span>
                             </div>
@@ -294,12 +295,24 @@ class WebSite
                     // While the page is still in active development, display debug data at the bottom
                     //echo '<p>Local data last updated '.$this->steamUser->lastUpdate.' seconds ago.</p>';
                     //echo '<p id="debuglog"> JS Debug: </p>';
-                    //echo '<p>&nbsp;<br/>&nbsp;</p>';
+                    //echo '<p>&nbsp;<br>&nbsp;</p>';
                     ?>
                 </div>
             </div>
         </div>
     <?PHP
+    }
+
+    /**
+     * Displays the stats pop-up window.
+     */
+    private function stats()
+    {
+        ?>
+        <div id="stats">
+            <p>Stats have not been loaded yet.</p>
+        </div>
+        <?PHP
     }
 
     /**
@@ -370,6 +383,15 @@ class WebSite
         ?>
         <div id="terms" data-user="<?= $userid ?>">
             <div class="terms">
+                <p><strong>Features that are not obvious</strong><br>
+                    <ol>
+                        <li>Clicking on the achievement % bar will bring up the list of achievements for that game in Steam.</li>
+                        <li>Clicking on a game in your "to beat" bar will update it's achievement percentage.</li>
+                        <li>The play game button will bring up the install game prompt if the game is not installed.</li>
+                        <li>The number of "to beat" slots can be tweaked in the settings menu.</li>
+                    </ol>
+                </p>
+
                 <p><strong>Are you collecting my Steam login information?</strong><br>
                     Absolutely not! The whole login process actually takes place on the Steam website and is completely
                     independent from my website.
@@ -476,6 +498,7 @@ class WebSite
 
         if ($this->steamUser) {
             $this->settings($this->steamUser->toBeatNum, $this->steamUser->considerBeaten, $this->steamUser->hideQuickStats, $this->steamUser->hideAccountStats);
+            $this->stats();
             $this->terms($this->steamUser->steamId);
         } else {
             $this->terms();
