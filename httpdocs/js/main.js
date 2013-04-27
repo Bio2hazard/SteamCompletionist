@@ -1412,8 +1412,8 @@ $(document).ready(function () {
             if(statsData === undefined) {
                 stats.empty().append('<p><br><img src="img/loading.gif" alt="Loading" height="16" width="16"><br>Stats are loading, please wait.</p>');
                 loadData('stats', 0, 0);
-                stats.dialog("open");
             }
+            stats.dialog("open");
         });
 
     $('#logout')

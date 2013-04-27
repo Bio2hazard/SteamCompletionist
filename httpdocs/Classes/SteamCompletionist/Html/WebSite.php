@@ -383,14 +383,14 @@ class WebSite
         ?>
         <div id="terms" data-user="<?= $userid ?>">
             <div class="terms">
-                <p><strong>Features that are not obvious</strong><br>
+                <p><strong>Features that are not obvious</strong><br></p>
                     <ol>
                         <li>Clicking on the achievement % bar will bring up the list of achievements for that game in Steam.</li>
                         <li>Clicking on a game in your "to beat" bar will update it's achievement percentage.</li>
                         <li>The play game button will bring up the install game prompt if the game is not installed.</li>
                         <li>The number of "to beat" slots can be tweaked in the settings menu.</li>
                     </ol>
-                </p>
+
 
                 <p><strong>Are you collecting my Steam login information?</strong><br>
                     Absolutely not! The whole login process actually takes place on the Steam website and is completely
