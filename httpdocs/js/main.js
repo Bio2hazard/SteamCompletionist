@@ -839,6 +839,8 @@ function scrollerCheck() {
         games_selector.css('height', '137px');
         wrapper_selector.css('top', '198px');
     }
+    $('#stats').dialog('option','height',$(window).height() * 0.90);
+    $('#terms').dialog('option','height',$(window).height() * 0.80);
 }
 
 function chartSelectHandler() {
@@ -1118,8 +1120,9 @@ $(document).ready(function () {
         fillslot = $('#fillslot'),
         gamebox = $('.game_box > .game_image'),
         error = $('#error'),
-        listbox = $('.list_box > .game_image');
-    loggeduser = $('#terms').attr('data-user');
+        listbox = $('.list_box > .game_image'),
+        terms = $('#terms');
+    loggeduser = terms.attr('data-user');
 
     if (loggeduser > 0) {
         tobeatnum = parseInt(settings.attr('data-tobeat'), 10);
@@ -1381,6 +1384,21 @@ $(document).ready(function () {
             });
         });
 
+    $('#stats').dialog({
+        draggable: true,
+        title: 'Stats',
+        width: '95%',
+        height: $(window).height() * 0.90,
+        autoOpen: false,
+        modal: true,
+        buttons: [
+            {
+                text: "Close", click: function () {
+                $(this).dialog("close");
+            }}
+        ]
+    });
+
     $('#showstats')
         .button({
             text: false,
@@ -1394,20 +1412,8 @@ $(document).ready(function () {
             if(statsData === undefined) {
                 stats.empty().append('<p><br><img src="img/loading.gif" alt="Loading" height="16" width="16"><br>Stats are loading, please wait.</p>');
                 loadData('stats', 0, 0);
+                stats.dialog("open");
             }
-            stats.dialog({
-                draggable: true,
-                title: 'Stats',
-                width: '95%',
-                height: 800,
-                modal: true,
-                buttons: [
-                    {
-                        text: "Close", click: function () {
-                        $(this).dialog("close");
-                    }}
-               ]
-            });
         });
 
     $('#logout')
@@ -1421,6 +1427,21 @@ $(document).ready(function () {
             window.location.href = "?logout";
         });
 
+    terms.dialog({
+        draggable: true,
+        title: 'FAQ & Terms',
+        width: '80%',
+        height: $(window).height() * 0.80,
+        autoOpen: false,
+        modal: true,
+        buttons: [
+            {
+                text: "Ok", click: function () {
+                $(this).dialog("close");
+            }}
+        ]
+    });
+
     $('#showhelp')
         .button({
             text: false,
@@ -1429,18 +1450,7 @@ $(document).ready(function () {
             }
         })
         .click(function () {
-            $('#terms').dialog({
-                draggable: true,
-                title: 'FAQ & Terms',
-                width: '80%',
-                modal: true,
-                buttons: [
-                    {
-                        text: "Ok", click: function () {
-                        $(this).dialog("close");
-                    }}
-                ]
-            });
+            $('#terms').dialog("open");
         });
 
     // Adds tooltips to all game images
