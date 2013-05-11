@@ -28,12 +28,6 @@ body {
     overflow: hidden;
 }
 
-footer {
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-}
-
 a, a:hover, a:active, a:visited {
     color: #ebebeb;
     text-decoration: none;
@@ -387,11 +381,25 @@ span.stat_unplayed {
 /* .credits is the Powered By Steam box at the bottom of the website */
 .credits {
     background-color: #2d2d2b;
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    margin-left: -60px;
+
     width: 120px;
     border-top-left-radius: 9px;
     border-top-right-radius: 9px;
-    margin: 0 auto;
     line-height: 120%;
+}
+
+.social {
+    position: absolute;
+    bottom: 0;
+    right: 40px;
+    padding: 3px 3px 2px;
+    background-color: #2d2d2b;
+    border-top-left-radius: 9px;
+    border-top-right-radius: 9px;
 }
 
 /* .loader is the indicator used to show AJAX activity */

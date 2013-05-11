@@ -111,6 +111,12 @@ class SteamUser
     public $hideAccountStats = 0;
 
     /**
+     * Toggle whether the social bar is shown or not.
+     * @var int
+     */
+    public $hideSocial = 0;
+
+    /**
      * Name of the game the Steam User is currently playing.
      * @var string
      */
@@ -307,6 +313,19 @@ class SteamUser
     }
 
     /**
+     * Updates the hideSocial flag for the user.
+     * hideSocial is a toggle that makes the website hide the social bar at the bottom of the site ( for antisocial people like myself! ).
+     *
+     * @param $hideSocial
+     */
+    public function setHideSocial($hideSocial)
+    {
+        $this->db->prepare('UPDATE `steamUserDB` SET `hideSocial` = ? WHERE `steamid` = ?');
+        $this->db->execute(array($hideSocial, $this->steamId), 'is');
+        $this->hideSocial = $hideSocial;
+    }
+
+    /**
      * Updates the status of a game.
      *
      * @param $appId
@@ -321,34 +340,50 @@ class SteamUser
 
         /** @var SteamGame $game */
         $game = $this->games[$appId];
-        if ($game && $game->gameStatus != 1) {
 
-            if ($game->gameSlot) {
-                $this->setSlot($appId, 0);
-            }
+        $oldStatus = $game->gameStatus;
 
-            $this->db->prepare('UPDATE `ownedGamesDB` SET `gameStatus` = ? WHERE `steamid` = ? AND `appid` = ?');
-            $this->db->execute(array($status, $this->steamId, $game->appId), 'isi');
-
-            if ($status == 1) {
-                // Game Beaten
-                $this->db->prepare('UPDATE `steamGameDB` SET `beaten` = `beaten` + 1 WHERE `appid` = ?');
-                $this->db->execute(array($game->appId), 'i');
-            } else if ($status == 2) {
-                // Game Blacklisted
-                $this->db->prepare('UPDATE `steamGameDB` SET `blacklisted` = `blacklisted` + 1 WHERE `appid` = ?');
-                $this->db->execute(array($game->appId), 'i');
-            } else if ($game->gameStatus == 2 && $status == 0) {
-                // Game Un-Blacklisted
-                $this->db->prepare('UPDATE `steamGameDB` SET `blacklisted` = `blacklisted` - 1 WHERE `appid` = ?');
-                $this->db->execute(array($game->appId), 'i');
-            }
-
-            $game->gameStatus = $status;
-
-        } else {
-            throw new Exception('Can\'t change status of a beaten game.');
+        if ($game->gameSlot) {
+            $this->setSlot($appId, 0);
         }
+
+        $this->db->prepare('UPDATE `ownedGamesDB` SET `gameStatus` = ? WHERE `steamid` = ? AND `appid` = ?');
+        $this->db->execute(array($status, $this->steamId, $game->appId), 'isi');
+
+        $queryNewStatus = '';
+        $queryOldStatus = '';
+
+        switch($status) {
+            case 1:
+                $queryNewStatus = '`beaten` = `beaten` + 1';
+                break;
+
+            case 2:
+                $queryNewStatus = '`blacklisted` = `blacklisted` + 1';
+                break;
+        }
+
+        switch($oldStatus) {
+            case 1:
+                $queryOldStatus = '`beaten` = `beaten` - 1';
+                break;
+
+            case 2:
+                $queryOldStatus = '`blacklisted` = `blacklisted` - 1';
+                break;
+        }
+
+        if($queryNewStatus && $queryOldStatus) {
+            $query = $queryNewStatus . ', ' . $queryOldStatus;
+        } else {
+            $query = $queryNewStatus . $queryOldStatus;
+        }
+
+        $this->db->prepare('UPDATE `steamGameDB` SET ' . $query . ' WHERE `appid` = ?');
+        $this->db->execute(array($game->appId), 'i');
+
+        $game->gameStatus = $status;
+
     }
 
     /**
@@ -441,7 +476,7 @@ class SteamUser
     public function loadLocalUserInfo()
     {
         try {
-            $this->db->prepare('SELECT `personaname`, `personastate`, `points`, (UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(`lastUpdate`)) AS `lastUpdate`, `profileurl`, `profilestate`, `avatar`, `toBeatNum`, `considerBeaten`, `hideQuickStats`, `hideAccountStats`, `gameName` FROM `steamUserDB` WHERE `steamid` = ?');
+            $this->db->prepare('SELECT `personaname`, `personastate`, `points`, (UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(`lastUpdate`)) AS `lastUpdate`, `profileurl`, `profilestate`, `avatar`, `toBeatNum`, `considerBeaten`, `hideQuickStats`, `hideAccountStats`, `hideSocial`, `gameName` FROM `steamUserDB` WHERE `steamid` = ?');
             $this->db->execute(array($this->steamId), 's');
             $result = $this->db->fetch();
 
@@ -457,6 +492,7 @@ class SteamUser
                 $this->considerBeaten = $result['considerBeaten'];
                 $this->hideQuickStats = $result['hideQuickStats'];
                 $this->hideAccountStats = $result['hideAccountStats'];
+                $this->hideSocial = $result['hideSocial'];
                 $this->gameName = $result['gameName'];
                 $this->logger->addEntry('Grabbed userdata from local database.');
             } else {

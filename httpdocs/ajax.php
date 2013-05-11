@@ -204,6 +204,18 @@ try {
 
             break;
 
+        case 'savehidesocial':
+            // Sanity Checks:
+            if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 1 || $_GET['value'] < 0) {
+                throw new Exception('Invalid number for hide social toggle.');
+            }
+            $newHideSocial = $_GET['value'];
+
+            $steamUser->loadLocalUserInfo();
+            $steamUser->setHideSocial($newHideSocial);
+
+            break;
+
         case 'stats':
                 $categoryID = array(
                     1 => 'owned',

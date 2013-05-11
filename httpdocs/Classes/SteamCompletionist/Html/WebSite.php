@@ -55,14 +55,6 @@ class WebSite
             <link rel="stylesheet" href="css/reset.css?<?=filectime('css/reset.css')?>" type="text/css"/>
             <link rel="stylesheet" href="css/jquery-ui-1.10.0.custom.min.css?<?=filectime('css/jquery-ui-1.10.0.custom.min.css')?>" type="text/css"/>
             <link rel="stylesheet" href="css/main.css?<?=filectime('css/main.css')?>" type="text/css"/>
-            <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-            <script type="text/javascript" src="js/jquery-1.8.3.min.js?<?=filectime('js/jquery-1.8.3.min.js')?>"></script>
-            <script type="text/javascript" src="js/jquery-ui-1.10.0.custom.min.js?<?=filectime('js/jquery-ui-1.10.0.custom.min.js')?>"></script>
-            <script type="text/javascript" src="js/main.js?<?=filectime('js/main.js')?>"></script>
-            <!--[if IE]>
-            <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
-            <!--[if lt IE 9]>
-            <script src="http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js"></script><![endif]-->
         </head>
         <body class="home">
     <?PHP
@@ -318,11 +310,11 @@ class WebSite
     /**
      * Displays the settings pop-up window. Also contains the state of some toggles.
      */
-    private function settings($toBeatNum, $considerBeaten, $hideQuickStats, $hideAccountStats)
+    private function settings($toBeatNum, $considerBeaten, $hideQuickStats, $hideAccountStats, $hideSocial)
     {
         ?>
         <div id="settings" data-tobeat="<?= $toBeatNum ?>" data-considerbeaten="<?= $considerBeaten ?>"
-             data-hidequickstats="<?= $hideQuickStats ?>" data-hideaccountstats="<?= $hideAccountStats ?>">
+             data-hidequickstats="<?= $hideQuickStats ?>" data-hideaccountstats="<?= $hideAccountStats ?>" data-hidesocial="<?= $hideSocial ?>">
             <div class="settings">
                 <form id="scsettings" autocomplete="off">
                     <label for="numgames">Number of games you wish to play concurrently</label>
@@ -367,6 +359,15 @@ class WebSite
                     }
                     ?>
                     <label for="hideaccountstats">Hide the account stats shown as the left-most entry in the "Beat these games" category</label>
+                    <br>
+                    <?PHP
+                    if ($hideSocial) {
+                        ?><input id="hidesocial" type="checkbox" name="hidesocial" checked><?PHP
+                    } else {
+                        ?><input id="hidesocial" type="checkbox" name="hidesocial"><?PHP
+                    }
+                    ?>
+                    <label for="hidesocial">Hide the social sharing bar at the bottom</label>
                 </form>
             </div>
         </div>
@@ -461,15 +462,44 @@ class WebSite
     /**
      * Displays the footer.
      */
-    private function footer()
+    private function footer($disableSocial = 0)
     {
+        $credits_class = '';
+        if(!$disableSocial) {
+            $credits_class = ' credits_left';
+        }
         ?>
         <footer>
-            <p class="credits">Powered by <a href="http://steampowered.com">Steam</a></p>
+            <p id="credits" class="credits<?=$credits_class?>">Powered by <a href="http://steampowered.com">Steam</a></p>
         </footer>
         <?PHP echo ($this->error) ? '<div id="error">' . $this->error . '</div>' : ''; ?>
         <div class="fader" draggable="false"></div>
         <div id="alert"></div>
+        <?PHP
+        if(!$disableSocial) {
+            ?>
+            <div id="social" class="addthis_toolbox addthis_default_style addthis_16x16_style social">
+                <a class="addthis_button_facebook"></a>
+                <a class="addthis_button_twitter"></a>
+                <a class="addthis_button_google_plusone_share"></a>
+                <a class="addthis_button_compact"></a><a class="addthis_counter addthis_bubble_style"></a>
+            </div>
+            <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=undefined"></script>
+            <?PHP
+        } else {
+            ?>
+            <div id="social" class="addthis_toolbox addthis_default_style addthis_16x16_style social" style="display:none;"></div>
+        <?PHP
+        }
+        ?>
+        <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+        <script type="text/javascript" src="js/jquery-1.8.3.min.js?<?=filectime('js/jquery-1.8.3.min.js')?>"></script>
+        <script type="text/javascript" src="js/jquery-ui-1.10.0.custom.min.js?<?=filectime('js/jquery-ui-1.10.0.custom.min.js')?>"></script>
+        <script type="text/javascript" src="js/main.js?<?=filectime('js/main.js')?>"></script>
+        <!--[if IE]>
+        <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+        <!--[if lt IE 9]>
+        <script src="http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js"></script><![endif]-->
         </body>
         </html>
     <?PHP
@@ -497,14 +527,14 @@ class WebSite
         }
 
         if ($this->steamUser) {
-            $this->settings($this->steamUser->toBeatNum, $this->steamUser->considerBeaten, $this->steamUser->hideQuickStats, $this->steamUser->hideAccountStats);
+            $this->settings($this->steamUser->toBeatNum, $this->steamUser->considerBeaten, $this->steamUser->hideQuickStats, $this->steamUser->hideAccountStats, $this->steamUser->hideSocial);
             $this->stats();
             $this->terms($this->steamUser->steamId);
+            $this->footer($this->steamUser->hideSocial);
         } else {
             $this->terms();
+            $this->footer();
         }
-
-        $this->footer();
 
     }
 
