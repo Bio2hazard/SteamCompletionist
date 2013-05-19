@@ -402,6 +402,48 @@ span.stat_unplayed {
     border-top-right-radius: 9px;
 }
 
+#usersearch {
+    float: left;
+    display: inline-block;
+}
+
+input.searchbar {
+    height: 20px;
+    margin-top: 7px;
+    margin-right: 5px;
+    color:#eeeeee;
+    font-family: Arial, Helvetica, Verdana, sans-serif;
+    font-weight: bold;
+    background: url("images/ui-bg_glass_20_555555_1x400.png") repeat-x scroll 50% 50% #555555;
+    border: 1px solid #666666;
+    border-radius: 6px;
+}
+
+input.searchmarginfix {
+    margin-top: 0;
+}
+
+.placeholder {
+    color:#AAAAAA !important;
+}
+
+::-webkit-input-placeholder {
+    color:#f0f0f0;
+    opacity:0.55;
+}
+::-moz-placeholder {
+    color:#f0f0f0;
+    opacity:0.55;
+} /* firefox 19+ */
+:-ms-input-placeholder {
+    color:#f0f0f0;
+    opacity:0.55;
+} /* ie */
+input:-moz-placeholder {
+    color:#f0f0f0;
+    opacity:0.55;
+}
+
 /* .loader is the indicator used to show AJAX activity */
 p.loader {
     float: left;
@@ -432,6 +474,11 @@ div.login > button.topbutton {
 
 div.loginsteam {
     float:left;
+}
+
+div.loginsteamfix {
+    margin-top: 7px;
+    margin-right: 5px;
 }
 
 /* .fader is used to highlight the possible drop zones while user is drag & dropping */
@@ -601,4 +648,8 @@ div.statsChart {
     height: 500px;
     width: 500px;
     display: inline-block;
+}
+
+span.bold {
+    font-weight:bold;
 }

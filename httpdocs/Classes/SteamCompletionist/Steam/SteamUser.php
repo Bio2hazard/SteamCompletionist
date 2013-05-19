@@ -45,6 +45,12 @@ class SteamUser
     public $steamId;
 
     /**
+     * Boolean that determines if anything may be modified or not
+     * @var bool
+     */
+    public $isOwner;
+
+    /**
      * The display name of the Steam User.
      * @var string
      */
@@ -117,6 +123,12 @@ class SteamUser
     public $hideSocial = 0;
 
     /**
+     * Toggle whether the profile is private or not.
+     * @var int
+     */
+    public $private = 0;
+
+    /**
      * Name of the game the Steam User is currently playing.
      * @var string
      */
@@ -171,21 +183,23 @@ class SteamUser
     );
 
     /**
-     * Constructor.
+     * Constructor
      *
      * @param $config
      * @param $steamId
      * @param DatabaseInterface $db
      * @param Util $util
      * @param LoggerInterface $logger
+     * @param $isOwner
      */
-    public function __construct($config, $steamId, DatabaseInterface $db, Util $util, LoggerInterface $logger)
+    public function __construct($config, $steamId, DatabaseInterface $db, Util $util, LoggerInterface $logger, $isOwner)
     {
         $this->config = $config;
         $this->steamId = $steamId;
         $this->db = $db;
         $this->util = $util;
         $this->logger = $logger;
+        $this->isOwner = $isOwner;
     }
 
     /**
@@ -254,9 +268,14 @@ class SteamUser
      * Sets the number of "to beat" slots for the steam user.
      *
      * @param $numToBeat
+     * @throws \Exception
      */
     public function setNumToBeat($numToBeat)
     {
+        if(!$this->isOwner) {
+            throw new Exception('Can\'t change number of "to beat" slots as you are not this accounts owner.');
+        }
+
         $oldToBeat = $this->toBeatNum;
         $this->logger->addEntry('Setting new numToBeat. numToBeat:' . $numToBeat . ' oldToBeat:' . $oldToBeat);
 
@@ -278,9 +297,14 @@ class SteamUser
      * considerBeaten is a toggle that makes the website consider beaten games for random game selection.
      *
      * @param $considerBeaten
+     * @throws \Exception
      */
     public function setConsiderBeaten($considerBeaten)
     {
+        if(!$this->isOwner) {
+            throw new Exception('Can\'t change consider beaten as you are not this accounts owner.');
+        }
+
         $this->db->prepare('UPDATE `steamUserDB` SET considerBeaten = ? WHERE `steamid` = ?');
         $this->db->execute(array($considerBeaten, $this->steamId), 'is');
         $this->considerBeaten = $considerBeaten;
@@ -291,9 +315,14 @@ class SteamUser
      * hideQuickStats is a toggle that makes the website hide the quick stats on active unit cards.
      *
      * @param $hideQuickStats
+     * @throws \Exception
      */
     public function setHideQuickStats($hideQuickStats)
     {
+        if(!$this->isOwner) {
+            throw new Exception('Can\'t change quick stats display as you are not this accounts owner.');
+        }
+
         $this->db->prepare('UPDATE `steamUserDB` SET `hideQuickStats` = ? WHERE `steamid` = ?');
         $this->db->execute(array($hideQuickStats, $this->steamId), 'is');
         $this->hideQuickStats = $hideQuickStats;
@@ -304,9 +333,14 @@ class SteamUser
      * hideAccountStats is a toggle that makes the website hide the google chart that shows percentages of beaten, played, unplayed and blacklisted games.
      *
      * @param $hideAccountStats
+     * @throws \Exception
      */
     public function setHideAccountStats($hideAccountStats)
     {
+        if(!$this->isOwner) {
+            throw new Exception('Can\'t change account stats display as you are not this accounts owner.');
+        }
+
         $this->db->prepare('UPDATE `steamUserDB` SET `hideAccountStats` = ? WHERE `steamid` = ?');
         $this->db->execute(array($hideAccountStats, $this->steamId), 'is');
         $this->hideAccountStats = $hideAccountStats;
@@ -314,15 +348,38 @@ class SteamUser
 
     /**
      * Updates the hideSocial flag for the user.
-     * hideSocial is a toggle that makes the website hide the social bar at the bottom of the site ( for antisocial people like myself! ).
+     * hideSocial is a toggle that makes the website hide the social bar at the bottom of the site ( for non-social media users like myself! ).
      *
      * @param $hideSocial
+     * @throws \Exception
      */
     public function setHideSocial($hideSocial)
     {
+        if(!$this->isOwner) {
+            throw new Exception('Can\'t change social status as you are not this accounts owner.');
+        }
+
         $this->db->prepare('UPDATE `steamUserDB` SET `hideSocial` = ? WHERE `steamid` = ?');
         $this->db->execute(array($hideSocial, $this->steamId), 'is');
         $this->hideSocial = $hideSocial;
+    }
+
+    /**
+     * Updates the private flag for the user.
+     * private is a toggle that makes the account only viewable by the owner.
+     *
+     * @param $private
+     * @throws \Exception
+     */
+    public function setPrivate($private)
+    {
+        if(!$this->isOwner) {
+            throw new Exception('Can\'t change privacy status as you are not this accounts owner.');
+        }
+
+        $this->db->prepare('UPDATE `steamUserDB` SET `private` = ? WHERE `steamid` = ?');
+        $this->db->execute(array($private, $this->steamId), 'is');
+        $this->private = $private;
     }
 
     /**
@@ -334,6 +391,10 @@ class SteamUser
      */
     public function setStatus($appId, $status)
     {
+        if(!$this->isOwner) {
+            throw new Exception('Can\'t change status for game ' . $appId . ' as you are not this accounts owner.');
+        }
+
         if (!isset($this->games[$appId])) {
             throw new Exception('Can\'t change status for game ' . $appId . ' as you do not own it.');
         }
@@ -395,6 +456,10 @@ class SteamUser
      */
     public function setSlot($appId, $slot)
     {
+        if(!$this->isOwner) {
+            throw new Exception('Can\'t change slot for game ' . $appId . ' as you are not this accounts owner.');
+        }
+
         if (!isset($this->games[$appId])) {
             throw new Exception('Can\'t change slot for game ' . $appId . ' as you do not own it.');
         }
@@ -476,7 +541,7 @@ class SteamUser
     public function loadLocalUserInfo()
     {
         try {
-            $this->db->prepare('SELECT `personaname`, `personastate`, `points`, (UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(`lastUpdate`)) AS `lastUpdate`, `profileurl`, `profilestate`, `avatar`, `toBeatNum`, `considerBeaten`, `hideQuickStats`, `hideAccountStats`, `hideSocial`, `gameName` FROM `steamUserDB` WHERE `steamid` = ?');
+            $this->db->prepare('SELECT `personaname`, `personastate`, `points`, (UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(`lastUpdate`)) AS `lastUpdate`, `profileurl`, `profilestate`, `avatar`, `toBeatNum`, `considerBeaten`, `hideQuickStats`, `hideAccountStats`, `hideSocial`, `private`, `gameName` FROM `steamUserDB` WHERE `steamid` = ?');
             $this->db->execute(array($this->steamId), 's');
             $result = $this->db->fetch();
 
@@ -493,6 +558,7 @@ class SteamUser
                 $this->hideQuickStats = $result['hideQuickStats'];
                 $this->hideAccountStats = $result['hideAccountStats'];
                 $this->hideSocial = $result['hideSocial'];
+                $this->private = $result['private'];
                 $this->gameName = $result['gameName'];
                 $this->logger->addEntry('Grabbed userdata from local database.');
             } else {
@@ -562,6 +628,26 @@ class SteamUser
     }
 
     /**
+     * Loads all games that are in the steamUser's to beat slots.
+     */
+    public function loadLocalSlotGames()
+    {
+        $this->db->prepare('SELECT a.`appid`, a.`minutesTotal`, a.`minutes2Weeks`, a.`minutesTotalStored`, a.`gameSlot`, a.`gameStatus`, a.`achievPer`, b.`name`, b.`community`, b.`logo`, b.`icon`, b.`owned`, b.`beaten`, b.`blacklisted` FROM `ownedGamesDB` AS a, `steamGameDB` AS b WHERE a.`appid` = b.`appid` AND a.`steamid` = ? AND a.`gameSlot` > 0');
+        $this->db->execute(array($this->steamId), 's');
+        $result = $this->db->fetch();
+        if ($result) {
+            // Games Found
+            do {
+                $this->games[$result['appid']] = new SteamGame($result['appid'], $this->config, $this->db, $this->logger, $this->util, $result['name'], $result['minutesTotal'], $result['minutes2Weeks'], $result['minutesTotalStored'], $result['gameSlot'], $result['gameStatus'], $result['achievPer'], $result['logo'], $result['icon'], $result['community'], $result['owned'], $result['beaten'], $result['blacklisted']);
+                if ($result['gameSlot']) {
+                    $this->slots[$result['gameSlot']] = $result['appid'];
+                }
+            } while ($result = $this->db->fetch());
+
+            $this->logger->addEntry('Grabbed game data from local database.');
+        }
+    }
+    /**
      * Loads a single game. Used to verify if the account owns a specific game.
      *
      * @param int $gameId ID of the game to load
@@ -608,6 +694,9 @@ class SteamUser
         } else {
             // No Games Found
             $this->loadRemoteGames();
+            // By loading local games right after, we get proper user numbers
+            $this->games = array();
+            $this->loadLocalGames();
         }
     }
 
@@ -630,7 +719,7 @@ class SteamUser
 
 
         if (!$gameData || isset($gameData['error']) || !isset($gameData['games'])) {
-            throw new Exception('The game data could not be retrieved. Is your profile set to private? Steam Completionist requires your profile to be set to "Public" in order to retrieve a list of your games.');
+            throw new Exception('The game data could not be retrieved. The profile is probably set to private. Steam Completionist requires the profile to be set to "Public" in order to retrieve a list of games.');
         }
 
         $gameData = $gameData['games'];

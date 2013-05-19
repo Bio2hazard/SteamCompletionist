@@ -28,6 +28,7 @@ use Classes\Common\OpenID\LightOpenID as LightOpenID;
 use Classes\Common\Logger\DbLogger as DbLogger;
 use Classes\Common\Util\Util as Util;
 use Classes\SteamCompletionist\Steam\SteamUser as SteamUser;
+use Classes\SteamCompletionist\Steam\SteamUserSearch as SteamUserSearch;
 
 try {
     $c = new Pimple();
@@ -70,13 +71,8 @@ try {
     $logger->setUser($user->userId);
     $logger->setIP($_SERVER['REMOTE_ADDR']);
 
-    // If user is not logged in, then the AJAX module has nothing to do.
-    if (!$user->loggedIn()) {
-        throw new Exception('Not logged in.');
-    }
-
     $c['steamUser'] = $c->share(function ($c) {
-        return new SteamUser($c['config']->steam, $c['user']->userId, $c['db'], $c['util'], $c['logger']);
+        return new SteamUser($c['config']->steam, $_GET['user'], $c['db'], $c['util'], $c['logger'], $_GET['user'] === $c['user']->userId);
     });
 
     /** @var SteamUser $steamUser */
@@ -88,19 +84,26 @@ try {
     switch ($_GET['mode']) {
         case 'getsteamdata':
             $steamUser->loadLocalUserInfo();
-            $steamUser->loadLocalGames();
             $steamUser->loadRemoteUserInfo();
-            $steamUser->loadRemoteGames();
             $return['steamuser'] = $steamUser->getUserData();
-            $return['steamgames'] = $steamUser->getGameData();
-            $return['deletelist'] = $steamUser->getDeleteList();
+
+            // Only load game info for the account's owner
+            if($steamUser->isOwner) {
+                $steamUser->loadLocalGames();
+                $steamUser->loadRemoteGames();
+                $return['steamgames'] = $steamUser->getGameData();
+                $return['deletelist'] = $steamUser->getDeleteList();
+            }
             break;
 
         case 'savegamestatus':
             // Sanity Checks:
-            if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 2 || $_GET['value'] < 0) {
+            if (!$steamUser->isOwner) {
+                throw new Exception('You are not the owner of this account.');
+            } else if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 2 || $_GET['value'] < 0) {
                 throw new Exception('Invalid game slot.');
             }
+
             $status = $_GET['value'];
 
             if (!$_GET['gid'] || !is_numeric($_GET['gid'])) {
@@ -116,9 +119,47 @@ try {
             $return['steamuser'] = $steamUser->getUserData();
             break;
 
+        case 'swapgameslot':
+            if (!$steamUser->isOwner) {
+                throw new Exception('You are not the owner of this account.');
+            } else if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 10 || $_GET['value'] < 0) {
+                throw new Exception('Invalid target slot.');
+            } else if (!isset($_GET['gid']) || !is_numeric($_GET['gid']) || $_GET['gid'] > 10 || $_GET['gid'] < 0) {
+                throw new Exception('Invalid source slot.');
+            }
+            $sourceSlot = $_GET['gid'];
+            $targetSlot = $_GET['value'];
+
+            $sourceGame = 0;
+            $targetGame = 0;
+
+            $steamUser->loadLocalUserInfo();
+            $steamUser->loadLocalSlotGames();
+
+            // First we EMPTY both slots, so that points are given out properly
+            if(isset($steamUser->slots[$sourceSlot])) {
+                $sourceGame = $steamUser->slots[$sourceSlot];
+                $steamUser->setSlot($sourceGame, 0);
+            }
+            if(isset($steamUser->slots[$targetSlot])) {
+                $targetGame = $steamUser->slots[$targetSlot];
+                $steamUser->setSlot($targetGame, 0);
+            }
+
+            // And then we swap the slots
+            if($sourceGame) {
+                $steamUser->setSlot($sourceGame, $targetSlot);
+            }
+            if($targetGame) {
+                $steamUser->setSlot($targetGame, $sourceSlot);
+            }
+            break;
+
         case 'savegameslot':
             // Sanity Checks:
-            if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 10 || $_GET['value'] < 0) {
+            if (!$steamUser->isOwner) {
+                throw new Exception('You are not the owner of this account.');
+            } else if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 10 || $_GET['value'] < 0) {
                 throw new Exception('Invalid game slot.');
             }
             $slot = $_GET['value'];
@@ -149,7 +190,7 @@ try {
                 /** @var \Classes\SteamCompletionist\Steam\SteamGame $game */
                 $game = $steamUser->games[$gameId];
                 if ($game->community) {
-                    $game->getAchievementPercentage($user->userId);
+                    $game->getAchievementPercentage($steamUser->steamId);
                     $return['gameachiev'] = array('gameid' => $gameId, 'percentage' => $game->achievementPercentage);
                 }
             }
@@ -157,7 +198,9 @@ try {
 
         case 'savenumtobeat':
             // Sanity Checks:
-            if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 10 || $_GET['value'] < 1) {
+            if (!$steamUser->isOwner) {
+                throw new Exception('You are not the owner of this account.');
+            } else if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 10 || $_GET['value'] < 1) {
                 throw new Exception('Invalid number for to beat slots.');
             }
             $newToBeatNum = $_GET['value'];
@@ -170,7 +213,9 @@ try {
 
         case 'saveconsiderbeaten':
             // Sanity Checks:
-            if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 1 || $_GET['value'] < 0) {
+            if (!$steamUser->isOwner) {
+                throw new Exception('You are not the owner of this account.');
+            } else if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 1 || $_GET['value'] < 0) {
                 throw new Exception('Invalid number for consider beaten toggle.');
             }
             $newConsiderBeaten = $_GET['value'];
@@ -182,7 +227,9 @@ try {
 
         case 'savehidequickstats':
             // Sanity Checks:
-            if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 1 || $_GET['value'] < 0) {
+            if (!$steamUser->isOwner) {
+                throw new Exception('You are not the owner of this account.');
+            } else if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 1 || $_GET['value'] < 0) {
                 throw new Exception('Invalid number for hide quick stats toggle.');
             }
             $newHideQuickStats = $_GET['value'];
@@ -194,7 +241,9 @@ try {
 
         case 'savehideaccountstats':
             // Sanity Checks:
-            if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 1 || $_GET['value'] < 0) {
+            if (!$steamUser->isOwner) {
+                throw new Exception('You are not the owner of this account.');
+            } else if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 1 || $_GET['value'] < 0) {
                 throw new Exception('Invalid number for hide account stats toggle.');
             }
             $newHideAccountStats = $_GET['value'];
@@ -206,13 +255,29 @@ try {
 
         case 'savehidesocial':
             // Sanity Checks:
-            if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 1 || $_GET['value'] < 0) {
+            if (!$steamUser->isOwner) {
+                throw new Exception('You are not the owner of this account.');
+            } else if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 1 || $_GET['value'] < 0) {
                 throw new Exception('Invalid number for hide social toggle.');
             }
             $newHideSocial = $_GET['value'];
 
             $steamUser->loadLocalUserInfo();
             $steamUser->setHideSocial($newHideSocial);
+
+            break;
+
+        case 'saveprivate':
+            // Sanity Checks:
+            if (!$steamUser->isOwner) {
+                throw new Exception('You are not the owner of this account.');
+            } else if (!isset($_GET['value']) || !is_numeric($_GET['value']) || $_GET['value'] > 1 || $_GET['value'] < 0) {
+                throw new Exception('Invalid number for hide social toggle.');
+            }
+            $newPrivate = $_GET['value'];
+
+            $steamUser->loadLocalUserInfo();
+            $steamUser->setPrivate($newPrivate);
 
             break;
 
@@ -270,6 +335,30 @@ try {
                     // No Stats found
                     throw new Exception('Grabbing stats failed.');
                 }
+            break;
+
+        case 'search':
+            // Sanity checks
+            if (!isset($_GET['search']) || empty($_GET['search'])) {
+                throw new Exception('Empty or non-existant search string');
+            }
+
+            $searchString = $_GET['search'];
+
+            $c['steamUserSearch'] = $c->share(function ($c) {
+                    return new SteamUserSearch($c['config']->steam, $c['db'], $c['util'], $c['logger']);
+                });
+            /** @var SteamUserSearch $steamUserSearch */
+            $steamUserSearch = $c['steamUserSearch'];
+
+            if($result = $steamUserSearch->search($searchString)) {
+                $return['searchresult'] = $result;
+            } else {
+                throw new Exception('No results for ' . htmlentities($searchString) . '.<br>Valid search terms are:<br>
+                    <span class="bold">Steam 64 ID</span> (Example: 76561197992057625)<br>
+                    <span class="bold">Custom ID</span> (Can be set in your profile settings)<br>
+                    <span class="bold">Persona Name</span> (Only works if the person you are searching for has visited this site)<br>');
+            }
             break;
 
         default:

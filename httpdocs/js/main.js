@@ -16,6 +16,7 @@ var gamelock = [],
     showplayed = true,
     showunplayed = true,
     loggeduser = 0,
+    isowner = false,
     select,
     slider,
     tobeatnum,
@@ -23,6 +24,7 @@ var gamelock = [],
     hidequickstats,
     hideaccountstats,
     hidesocial,
+    accountprivacy,
     addInfoCard,
     newStatsChart,
     stats = [],
@@ -31,6 +33,21 @@ var gamelock = [],
     chartData,
     chartOptions,
     statsData;
+
+String.prototype.getDDHHMM = function () {
+    "use strict";
+    var minutes_total    = parseInt(this, 10),
+        days = Math.floor(((minutes_total / 60) / 24)),
+        hours   = Math.floor((minutes_total / 60) - (days * 24)),
+        minutes = Math.floor(minutes_total - ((hours * 60) + ((days * 24) * 60) )),
+        time;
+
+    if (days    < 10) {days    = "0"+days;}
+    if (hours   < 10) {hours   = "0"+hours;}
+    if (minutes < 10) {minutes = "0"+minutes;}
+    time    = days+' Days '+hours+':'+minutes;
+    return time;
+};
 
 String.prototype.getHHMM = function () {
     "use strict";
@@ -83,17 +100,18 @@ function preload(arrayOfImages) {
     });
 }
 
-
 // AJAX function to load and set data
-function loadData(mode, gameid, value) {
+function loadData(mode, gameid, value, search) {
     "use strict";
     gameid = (Math.floor(gameid) === parseInt(gameid, 10) && $.isNumeric(gameid)) ? gameid : 0;
     value = (Math.floor(value) === parseInt(value, 10) && $.isNumeric(value)) ? value : 0;
 
-    $.get('ajax.php', {
+    $.get('/ajax.php', {
+            user: loggeduser,
             mode: mode,
             gid: gameid,
-            value: value
+            value: value,
+            search: search
         },
 
         function (data) {
@@ -102,6 +120,10 @@ function loadData(mode, gameid, value) {
             if (data !== undefined) {
                 if (data.errorlog !== undefined) {
                     errorMessage(data.errorlog);
+                }
+
+                if (data.searchresult !== undefined) {
+                    window.location.href = "/" + data.searchresult + "/";
                 }
 
                 if (data.stats !== undefined) {
@@ -119,7 +141,8 @@ function loadData(mode, gameid, value) {
                 //}
                 if (data.steamgames !== undefined) {
                     $.each(data.steamgames, function () {
-                        var game = $('#' + this.appid);
+                        var game = $('#' + this.appid),
+                            game_image;
                         if (!game.length) {
                             if (this.achievper.length) {
                                 $('.list_boxes').prepend('<div id="' + this.appid + '" class="list_box"><img class="game_image" width="184" height="69" data-status="' + this.status + '" data-minutes2weeks="' + this.minutes2weeks + '" data-minutestotal="' + this.minutestotal + '" data-gameid="' + this.appid + '" alt="' + this.name + '" data-numowned="' + this.numowned + '" data-numbeaten="' + this.numbeaten + '" data-numblacklisted="' + this.numblacklisted + '" src="http://media.steampowered.com/steamcommunity/public/images/apps/' + this.appid + '/' + this.imagehash + '.jpg" data-achievper="' + this.achievper + '" /></div>');
@@ -131,7 +154,18 @@ function loadData(mode, gameid, value) {
                             game.children('.game_image').addTooltip();
                             game.on('click', '.game_image', addInfoCard);
                         } else {
-                            $('.game_image[data-gameid="' + this.appid + '"]').attr('data-minutes2weeks', this.minutes2weeks).attr('data-minutestotal', this.minutestotal).attr('data-achievper', this.achievper);
+                            // We need to use the less fast .game_image search so that items in the "to beat" list are affected as well.
+                            // This can be potentially optimized by using game.children('.game_image'). and additionally scanning the "to beat" slots.
+                            game_image = $('.game_image[data-gameid="' + this.appid + '"]');
+                            game_image.attr('data-minutes2weeks', this.minutes2weeks).attr('data-minutestotal', this.minutestotal).attr('data-achievper', this.achievper);
+
+                            // Update any active time boxes
+                            game_image.siblings('.time_box').children('span').html(this.minutestotal.toString().getHHMM());
+
+                            // Remove unplayed class if the game has been played now
+                            if(game_image.parent('div').hasClass('unplayed') && this.minutestotal > 0) {
+                                game_image.parent('div').removeClass('unplayed');
+                            }
                         }
                     });
                     $('.list_box').sortElements(function (a, b) {
@@ -267,38 +301,75 @@ $.fn.setListDrag = function () {
 $.fn.setListDrop = function () {
     "use strict";
     $(this).droppable({
-        accept: '.list_box',
+        accept: '.list_box,.game_box_active',
         addClasses: false,
         hoverClass: 'over',
         tolerance: 'pointer',
         drop: function (event, ui) {
-            loadData('savegameslot', ui.draggable[0].id, this.id.substr(9));
-            var gameid = $(this).find('.game_image').attr('data-gameid'),
-                status = $(ui.draggable).find('.game_image').attr('data-status'),
+            var gameid, status, played, box_old_id, box_new_id, box_old, box_new;
+
+            if($(ui.draggable).hasClass('game_box_active')) {
+                box_old_id = this.id.substr(9);
+                box_new_id = ui.draggable[0].id.substr(9);
+                box_old = this.innerHTML;
+                box_new = ui.draggable[0].innerHTML;
+
+                loadData('swapgameslot', box_new_id, box_old_id);
+
+                $(ui.draggable).draggable('option', 'revertDuration', 0);
+                $(this).html(box_new);
+                $(ui.draggable).html(box_old);
+
+                if(!$(this).hasClass('game_box_active')) {
+                    // We move the game to a inactive game box, so we need to resize appropriately
+                    $(ui.draggable).data('delete', '1');
+                    $(this).setGameBoxDrag();
+
+                    $(this).addClass('game_box_active').stop().animate({
+                        height: '103',
+                        marginBottom: '-10'
+                    }, 400);
+
+                    $(ui.draggable).stop().animate({
+                        height: '69',
+                        marginBottom: '2em'
+                    }, 400, function () {
+                        $(ui.draggable).removeClass('game_box_active');
+                        //noinspection JSValidateTypes
+                        $(ui.draggable).children('.act_btn').remove();
+                        //noinspection JSValidateTypes
+                        $(ui.draggable).children('.achiev_bar').remove();
+                    });
+                }
+            } else {
+                loadData('savegameslot', ui.draggable[0].id, this.id.substr(9));
+                gameid = $(this).find('.game_image').attr('data-gameid');
+                status = $(ui.draggable).find('.game_image').attr('data-status');
                 played = $(ui.draggable).find('.game_image').attr('data-minutestotal');
 
-            if (gameid) {
-                $('.list_boxes').find('#' + gameid).draggable('enable').on('click', '.game_image', addInfoCard);
-            }
-            $(ui.draggable).infoCardHardDisable();
-            $(this).html(ui.draggable[0].innerHTML);
-            if (status === '1') {
-                $(this).addClass('beaten');
-            } else if (played === '0') {
-                $(this).addClass('unplayed');
-            } else {
-                $(this).removeClass('beaten unplayed');
-            }
-            $(ui.draggable).draggable('disable');
-            $(ui.draggable).draggable('option', 'revertDuration', 0);
-            $(ui.draggable).off('click', '.game_image', addInfoCard);
+                if (gameid) {
+                    $('.list_boxes').find('#' + gameid).draggable('enable').on('click', '.game_image', addInfoCard);
+                }
+                $(ui.draggable).infoCardHardDisable();
+                $(this).html(ui.draggable[0].innerHTML);
+                if (status === '1') {
+                    $(this).addClass('beaten');
+                } else if (played === '0') {
+                    $(this).addClass('unplayed');
+                } else {
+                    $(this).removeClass('beaten unplayed');
+                }
+                $(ui.draggable).draggable('disable');
+                $(ui.draggable).draggable('option', 'revertDuration', 0);
+                $(ui.draggable).off('click', '.game_image', addInfoCard);
 
-            $(this).setGameBoxDrag();
-            //noinspection JSValidateTypes
-            $(this).children('.game_image').activeInfoCard();
-            $(this).addTooltip();
-            if (!$('.game_box > .empty_game_box').length) {
-                $('#fillslot').button('disable');
+                $(this).setGameBoxDrag();
+                //noinspection JSValidateTypes
+                $(this).children('.game_image').activeInfoCard();
+                $(this).addTooltip();
+                if (!$('.game_box > .empty_game_box').length) {
+                    $('#fillslot').button('disable');
+                }
             }
         }
     });
@@ -482,7 +553,11 @@ $.fn.achievementBar = function (load) {
         }, 1200);
 
         $(this).siblings('.sel_progress').click(function () {
-            window.location = 'steam://url/SteamIDAchievementsPage/' + $(this).siblings(".game_image").attr('data-gameid');
+            if(isowner) {
+                window.location = 'steam://url/SteamIDAchievementsPage/' + $(this).siblings(".game_image").attr('data-gameid');
+            } else {
+                window.location = 'steam://url/SteamIDPage/' + loggeduser;
+            }
             $('.ui-tooltip').remove();
         });
 
@@ -505,7 +580,9 @@ $.fn.activeInfoCard = function () {
             numblacklisted = parseInt($(this).attr('data-numblacklisted'), 10),
             numowned = parseInt($(this).attr('data-numowned'), 10) - (numbeaten + numblacklisted);
 
-        if (status === '1') {
+        if(!isowner) {
+            $(this).parent().append('<button class="act_btn store">View on Steam Store</button><button class="act_btn beat">Beaten status</button><button class="act_btn blacklist">Blacklisted status</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="time_box" title="Quick Stats: Total time user spent playing this game"><span>' + played.getHHMM() + '</span></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
+        } else if (status === '1') {
             $(this).parent().append('<button class="act_btn unpin">Remove from my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Un-mark game as beat</button><button class="act_btn blacklist">Blacklist this game</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="time_box" title="Quick Stats: Total time you\'ve spent playing this game"><span>' + played.getHHMM() + '</span></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
         } else {
             $(this).parent().append('<button class="act_btn unpin">Remove from my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Mark game as beat</button><button class="act_btn blacklist">Blacklist this game</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="time_box" title="Quick Stats: Total time you\'ve spent playing this game"><span>' + played.getHHMM() + '</span></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
@@ -516,36 +593,38 @@ $.fn.activeInfoCard = function () {
             $('.time_box').css('display', 'none');
         }
 
-        $(this).siblings('.unpin').button({
-            icons: {
-                primary: "ui-icon-pin-w"
-            },
-            text: false
-        }).click(function () {
-                var gameid = $(this).siblings('.game_image').attr('data-gameid'),
-                    status = $(this).siblings('.game_image').attr('data-status'),
-                    played = $(this).siblings('.game_image').attr('data-minutestotal'),
-                    parent = $(this).parent();
-                loadData('savegameslot', gameid, 0);
-                $('.list_boxes').find('#' + gameid).draggable('enable').on('click', '.game_image', addInfoCard);
-                parent.empty();
-                parent.append('<div class="empty_game_box"></div>');
-                $('.pin').button('enable');
-                $('#fillslot').button('enable');
-                parent.stop().animate({
-                    height: '69',
-                    marginBottom: '2em'
-                }, 400, function () {
-                    parent.removeClass('game_box_active');
+        if(isowner) {
+            $(this).siblings('.unpin').button({
+                icons: {
+                    primary: "ui-icon-pin-w"
+                },
+                text: false
+            }).click(function () {
+                    var gameid = $(this).siblings('.game_image').attr('data-gameid'),
+                        status = $(this).siblings('.game_image').attr('data-status'),
+                        played = $(this).siblings('.game_image').attr('data-minutestotal'),
+                        parent = $(this).parent();
+                    loadData('savegameslot', gameid, 0);
+                    $('.list_boxes').find('#' + gameid).draggable('enable').on('click', '.game_image', addInfoCard);
+                    parent.empty();
+                    parent.append('<div class="empty_game_box"></div>');
+                    $('.pin').button('enable');
+                    $('#fillslot').button('enable');
+                    parent.stop().animate({
+                        height: '69',
+                        marginBottom: '2em'
+                    }, 400, function () {
+                        parent.removeClass('game_box_active');
+                    });
+                    parent.draggable('destroy');
+                    parent.setListDrop();
+                    if (status === '1') {
+                        parent.removeClass('beaten');
+                    } else if (played === '0') {
+                        parent.removeClass('unplayed');
+                    }
                 });
-                parent.draggable('destroy');
-                parent.setListDrop();
-                if (status === '1') {
-                    parent.removeClass('beaten');
-                } else if (played === '0') {
-                    parent.removeClass('unplayed');
-                }
-            });
+        }
 
         $(this).siblings('.blacklist').button({
             icons: {
@@ -557,7 +636,6 @@ $.fn.activeInfoCard = function () {
                     status = $(this).siblings('.game_image').attr('data-status'),
                     numblacklisted = parseInt($(this).siblings('.game_image').attr('data-numblacklisted'), 10),
                     numbeaten = parseInt($(this).siblings('.game_image').attr('data-numbeaten'), 10),
-                    played = $(this).siblings('.game_image').attr('data-minutestotal'),
                     parent = $(this).parent(),
                     listboxes = $('.list_boxes');
                 loadData('savegamestatus', gameid, 2);
@@ -653,28 +731,47 @@ $.fn.activeInfoCard = function () {
             $(this).siblings('.beat').addClass('ui-state-focus');
         }
 
-        $(this).siblings('.play')
-            .button({
-                icons: {
-                    primary: "ui-icon-play"
-                },
-                text: false
-            })
-            .click(function () {
-                window.location = 'steam://run/' + gameid;
-                $('.ui-tooltip').remove();
-                $(this).removeClass('ui-state-focus');
-            });
+        if (!isowner) {
+            $(this).siblings('.beat,.blacklist').button('disable');
+        }
 
-        $(this).click(function () {
-            if (gamelock[gameid] === undefined) {
-                gamelock[gameid] = 1;
-                window.setTimeout(function () {
-                    delete gamelock[gameid];
-                }, 30000);
-                loadData('achievpercent', $(this).attr('data-gameid'), 0);
-            }
-        });
+        if(isowner) {
+            $(this).siblings('.play')
+                .button({
+                    icons: {
+                        primary: "ui-icon-play"
+                    },
+                    text: false
+                })
+                .click(function () {
+                    window.location = 'steam://run/' + gameid;
+                    $('.ui-tooltip').remove();
+                    $(this).removeClass('ui-state-focus');
+                });
+
+            $(this).click(function () {
+                if (gamelock[gameid] === undefined) {
+                    gamelock[gameid] = 1;
+                    window.setTimeout(function () {
+                        delete gamelock[gameid];
+                    }, 30000);
+                    loadData('achievpercent', $(this).attr('data-gameid'), 0);
+                }
+            });
+        } else {
+            $(this).siblings('.store')
+                .button({
+                    icons: {
+                        primary: "ui-icon-cart"
+                    },
+                    text: false
+                })
+                .click(function () {
+                    window.location = 'steam://store/' + gameid;
+                    $('.ui-tooltip').remove();
+                    $(this).removeClass('ui-state-focus');
+                });
+        }
 
         if (gamelock[gameid] !== undefined) {
             $(this).achievementBar(false);
@@ -716,8 +813,9 @@ addInfoCard = function (event) {
         numblacklisted = parseInt($(target).attr('data-numblacklisted'), 10);
         numowned = parseInt($(target).attr('data-numowned'), 10) - (numbeaten + numblacklisted);
 
-        // Blacklisted game:
-        if (status === '2') {
+        if(!isowner) {
+            $(this).parent().append('<button class="act_btn store">View on Steam Store</button><button class="act_btn beat">Beaten status</button><button class="act_btn blacklist">Blacklisted status</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="time_box" title="Quick Stats: Total time user spent playing this game"><span>' + played.getHHMM() + '</span></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
+        } else if (status === '2') {
             $(target).parent().append('<button class="act_btn pin">Cannot add a blacklisted game</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Mark game as beat</button><button class="act_btn blacklist">Un-Blacklist this game</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="time_box" title="Quick Stats: Total time you\'ve spent playing this game"><span>' + played.getHHMM() + '</span></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
         } else if (status === '1') {
             $(target).parent().append('<button class="act_btn pin">Add to my &quot;to beat&quot; list</button><button class="act_btn play">Play/Install game</button><button class="act_btn beat">Un-mark game as beat</button><button class="act_btn blacklist">Blacklist this game</button><div class="achiev_bar sel_progress" title="Achievement percentage"></div><div class="time_box" title="Quick Stats: Total time you\'ve spent playing this game"><span>' + played.getHHMM() + '</span></div><div class="stat_box" title="Quick Stats: Steam Completionist members who Own (blue), Beaten (green) and Blacklisted (red) this game"><span class="stat_owned">' + numowned + '</span> <span class="stat_beaten">' + numbeaten + '</span> <span class="stat_blacklisted">' + numblacklisted + '</span> </div>');
@@ -730,34 +828,36 @@ addInfoCard = function (event) {
             $('.time_box').css('display', 'none');
         }
 
-        $(target).siblings('.pin').button({
-            icons: {
-                primary: "ui-icon-pin-s"
-            },
-            text: false
-        }).click(function () {
-                var target_slot = $('.game_box > .empty_game_box:first').parent(),
-                    game = $(this).parent();
-                loadData('savegameslot', game.children('.game_image').attr('data-gameid'), target_slot.attr('id').substr(9));
-                game.infoCardHardDisable();
-                target_slot.html(game.html());
-                if (status === '1') {
-                    target_slot.addClass('beaten');
-                } else if (played === '0') {
-                    target_slot.addClass('unplayed');
-                }
-                game.draggable('disable');
-                game.off('click', '.game_image', addInfoCard);
-                target_slot.setGameBoxDrag();
-                target_slot.children('.game_image').activeInfoCard();
-                target_slot.addTooltip();
-                if (!$('.game_box > .empty_game_box').length) {
-                    $('#fillslot').button('disable');
-                }
-            });
+        if(isowner) {
+            $(target).siblings('.pin').button({
+                icons: {
+                    primary: "ui-icon-pin-s"
+                },
+                text: false
+            }).click(function () {
+                    var target_slot = $('.game_box > .empty_game_box:first').parent(),
+                        game = $(this).parent();
+                    loadData('savegameslot', game.children('.game_image').attr('data-gameid'), target_slot.attr('id').substr(9));
+                    game.infoCardHardDisable();
+                    target_slot.html(game.html());
+                    if (status === '1') {
+                        target_slot.addClass('beaten');
+                    } else if (played === '0') {
+                        target_slot.addClass('unplayed');
+                    }
+                    game.draggable('disable');
+                    game.off('click', '.game_image', addInfoCard);
+                    target_slot.setGameBoxDrag();
+                    target_slot.children('.game_image').activeInfoCard();
+                    target_slot.addTooltip();
+                    if (!$('.game_box > .empty_game_box').length) {
+                        $('#fillslot').button('disable');
+                    }
+                });
 
-        if (!$('.game_box > .empty_game_box').length) {
-            $(target).siblings('.pin').button('disable');
+            if (!$('.game_box > .empty_game_box').length) {
+                $(target).siblings('.pin').button('disable');
+            }
         }
 
         $(target).siblings('.blacklist').button({
@@ -849,22 +949,41 @@ addInfoCard = function (event) {
         if (status === '1') {
             $(target).siblings('.beat').addClass('ui-state-focus');
         } else if (status === '2') {
-            $(target).siblings('.pin').button('disable');
+            if(isowner) {
+                $(target).siblings('.pin').button('disable');
+            }
             $(target).siblings('.blacklist').addClass('ui-state-focus');
         }
 
+        if (!isowner) {
+            $(this).siblings('.beat,.blacklist').button('disable');
+        }
 
-        $(target).siblings('.play')
-            .button({
-                icons: {
-                    primary: "ui-icon-play"
-                },
-                text: false
-            }).click(function () {
-                window.location = 'steam://run/' + gameid;
-                $('.ui-tooltip').remove();
-                $(this).removeClass('ui-state-focus');
-            });
+        if(isowner) {
+            $(target).siblings('.play')
+                .button({
+                    icons: {
+                        primary: "ui-icon-play"
+                    },
+                    text: false
+                }).click(function () {
+                    window.location = 'steam://run/' + gameid;
+                    $('.ui-tooltip').remove();
+                    $(this).removeClass('ui-state-focus');
+                });
+        } else {
+            $(target).siblings('.store')
+                .button({
+                    icons: {
+                        primary: "ui-icon-cart"
+                    },
+                    text: false
+                }).click(function () {
+                    window.location = 'steam://store/' + gameid;
+                    $('.ui-tooltip').remove();
+                    $(this).removeClass('ui-state-focus');
+                });
+        }
 
         if (gamelock[gameid] !== undefined) {
             $(target).achievementBar(false);
@@ -901,6 +1020,26 @@ function scrollerCheck() {
     $('#terms').dialog('option','height',$(window).height() * 0.80);
 }
 
+function sendSearchForm(e) {
+    "use strict";
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+
+    var searchbar = $('#searchbar');
+
+    if(searchbar.val() === searchbar.attr('placeholder')) {
+        searchbar.val('');
+    }
+
+    if(searchbar.val() !== '') {
+        loadData('search', 0, 0, searchbar.val());
+    }
+
+    // You must return false to prevent the default form behavior
+    return false;
+}
+
 function chartSelectHandler() {
     "use strict";
     var listbox = $('.list_box > .game_image'),
@@ -922,7 +1061,6 @@ function chartSelectHandler() {
                     showbeat = true;
                     listbox.filter('[data-status=1]').parent().fadeIn("slow");
                 }
-                $('#showbeat').toggleClass('focus');
             break;
 
             case 2: // Played
@@ -953,7 +1091,6 @@ function chartSelectHandler() {
                     showblacklisted = true;
                     listbox.filter('[data-status=2]').parent().fadeIn("slow");
                 }
-                $('#showblacklisted').toggleClass('focus');
             break;
         }
         chart.setSelection();
@@ -1010,25 +1147,15 @@ function newChart() {
     google.visualization.events.addListener(chart, 'select', chartSelectHandler);
 
     chart.draw(chartData, chartOptions);
+    $('<span style="font-family: Arial; font-size: 9px; color:#B3B3B3;">Click category to filter</span>').appendTo('.home').position({
+        my: "right bottom",
+        at: "right-8 bottom",
+        of: "#account_stats"
+    });
 }
 
 newStatsChart = function() {
     "use strict";
-
-    $('#stats').empty().append(
-        '<p><br>' +
-            '<div id="statsmosttimechart" class="statsChart"></div>' +
-            '<div id="statsrecenttimechart" class="statsChart"></div>' +
-            '<div id="statsleastplayedchart" class="statsChart"></div>' +
-            '<div id="statsownedchart" class="statsChart"></div>' +
-            '<div id="statsbeatenchart" class="statsChart"></div>' +
-            '<div id="statsblacklistedchart" class="statsChart"></div>' +
-            '<div id="statsunbeatenchart" class="statsChart"></div>' +
-            //'<div id="statsleastownedchart" class="statsChart"></div>' +
-            '<div>Please keep in mind that these stats are not entirely accurate.<br>' +
-            'They only include users of this website, and user stats only get refreshed when they visit the website.<br>' +
-            'In short: Inactive people and people who don\'t update / categorize their games affect these stats.</div>' +
-        '</p>');
 
     var statsOwnedChart,
         statsOwnedChartData,
@@ -1045,15 +1172,43 @@ newStatsChart = function() {
         statsUnbeatenChart,
         statsUnbeatenChartData,
         statsUnbeatenChartOptions,
-        //statsLeastOwnedChart,
-        //statsLeastOwnedChartData,
-        //statsLeastOwnedChartOptions,
+    //statsLeastOwnedChart,
+    //statsLeastOwnedChartData,
+    //statsLeastOwnedChartOptions,
         statsMostTimeChart,
         statsMostTimeChartData,
         statsMostTimeChartOptions,
         statsRecentTimeChart,
         statsRecentTimeChartData,
-        statsRecentTimeChartOptions;
+        statsRecentTimeChartOptions,
+        acc_stats = '',
+        listbox_selector = $('.list_box'),
+        totalminutes = 0;
+
+    if(loggeduser > 0) {
+        listbox_selector.each(function() {
+            totalminutes += parseInt($(this).children('.game_image').attr('data-minutestotal'), 10);
+        });
+
+        acc_stats = 'This account has ' + listbox_selector.length + ' games ( not counting DLC ), and has spent ' + totalminutes.toString().getDDHHMM() + ' playing them.<br><br>';
+    }
+
+    $('#stats').empty().append(
+        '<p><br>' + acc_stats +
+            '<div id="statsmosttimechart" class="statsChart"></div>' +
+            '<div id="statsrecenttimechart" class="statsChart"></div>' +
+            '<div id="statsleastplayedchart" class="statsChart"></div>' +
+            '<div id="statsownedchart" class="statsChart"></div>' +
+            '<div id="statsbeatenchart" class="statsChart"></div>' +
+            '<div id="statsblacklistedchart" class="statsChart"></div>' +
+            '<div id="statsunbeatenchart" class="statsChart"></div>' +
+            //'<div id="statsleastownedchart" class="statsChart"></div>' +
+            '<div>Please keep in mind that these stats are not entirely accurate.<br>' +
+            'They only include users of this website, and user stats only get refreshed when they visit the website.<br>' +
+            'In short: Inactive people and people who don\'t update / categorize their games affect these stats.</div>' +
+        '</p>');
+
+
 
     statsOwnedChartData = new google.visualization.DataTable(statsData[1]);
     statsBeatenChartData = new google.visualization.DataTable(statsData[2]);
@@ -1179,15 +1334,22 @@ $(document).ready(function () {
         gamebox = $('.game_box > .game_image'),
         error = $('#error'),
         listbox = $('.list_box > .game_image'),
-        terms = $('#terms');
+        terms = $('#terms'),
+        searchform = $('#usersearch');
+
     loggeduser = terms.attr('data-user');
 
     if (loggeduser > 0) {
+        if(terms.attr('data-owner') === '1') {
+            isowner = true;
+        }
+
         tobeatnum = parseInt(settings.attr('data-tobeat'), 10);
         considerbeaten = settings.attr('data-considerbeaten');
         hidequickstats = settings.attr('data-hidequickstats');
         hideaccountstats = settings.attr('data-hideaccountstats');
         hidesocial = settings.attr('data-hidesocial');
+        accountprivacy = settings.attr('data-private');
 
         select = $('#numgames');
 
@@ -1229,240 +1391,244 @@ $(document).ready(function () {
     // The data is then used to update the user's displayed data, refreshing all elements
     // Can be used to show a game after you've bought it, get your current user status etc
 
-    $('#showbeat')
-        .button({
-            text: false,
-            icons: {
-                primary: 'ui-icon-check'
-            }
-        }).addClass('focus')
-        .click(function () {
-            var listbox = $('.list_box > .game_image');
-            if (showbeat) {
-                showbeat = false;
-                listbox.filter('[data-status=1]').parent().fadeOut("slow");
-            } else {
-                showbeat = true;
-                listbox.filter('[data-status=1]').parent().fadeIn("slow");
-            }
-            $(this).toggleClass('focus');
-            $(this).removeClass('ui-state-focus');
-        });
-
-    $('#showblacklisted')
-        .button({
-            text: false,
-            icons: {
-                primary: 'ui-icon-cancel'
-            }
-        }).addClass('focus')
-        .click(function () {
-            var listbox = $('.list_box > .game_image');
-            if (showblacklisted) {
-                showblacklisted = false;
-                listbox.filter('[data-status=2]').parent().fadeOut("slow");
-            } else {
-                showblacklisted = true;
-                listbox.filter('[data-status=2]').parent().fadeIn("slow");
-            }
-            $(this).toggleClass('focus');
-            $(this).removeClass('ui-state-focus');
-        });
-
-    fillslot
-        .button({
-            text: false,
-            icons: {
-                primary: 'ui-icon-plusthick'
-            }
-        })
-        .click(function () {
-            var game,
-                target_slot = $('.game_box > .empty_game_box:first').parent(),
-                status,
-                played;
-
-            if (considerbeaten === '1') {
-                game = $('.list_box:not(.disabled,.blacklisted,.ui-state-disabled)').random();
-            } else {
-                game = $('.list_box:not(.disabled,.beaten,.blacklisted,.ui-state-disabled)').random();
-            }
-
-            if (game.length) {
-                loadData('savegameslot', game.children('.game_image').attr('data-gameid'), target_slot.attr('id').substr(9));
-                status = game.children('.game_image').attr('data-status');
-                played = game.children('.game_image').attr('data-minutestotal');
-
-
-                game.infoCardHardDisable();
-                target_slot.html(game.html());
-                if (status === '1') {
-                    target_slot.addClass('beaten');
-                } else if(played === '0') {
-                    target_slot.addClass('unplayed');
+    if(isowner) {
+        // These buttons are only available to owners
+        fillslot
+            .button({
+                text: false,
+                icons: {
+                    primary: 'ui-icon-plusthick'
                 }
-                game.draggable('disable');
-                game.off('click', '.game_image', addInfoCard);
-                target_slot.setGameBoxDrag();
-                target_slot.children('.game_image').activeInfoCard();
-                target_slot.addTooltip();
+            })
+            .click(function () {
+                var game,
+                    target_slot = $('.game_box > .empty_game_box:first').parent(),
+                    status,
+                    played;
 
-                if (!$('.game_box > .empty_game_box').length) {
-                    $(this).button('disable');
+                if (considerbeaten === '1') {
+                    game = $('.list_box:not(.disabled,.blacklisted,.ui-state-disabled)').random();
+                } else {
+                    game = $('.list_box:not(.disabled,.beaten,.blacklisted,.ui-state-disabled)').random();
                 }
-            } else {
-                errorMessage('No eligible game found. :(');
-            }
 
-            $(this).removeClass('ui-state-focus');
-            $('.ui-tooltip').remove();
-        });
+                if (game.length) {
+                    loadData('savegameslot', game.children('.game_image').attr('data-gameid'), target_slot.attr('id').substr(9));
+                    status = game.children('.game_image').attr('data-status');
+                    played = game.children('.game_image').attr('data-minutestotal');
 
-    if (!$('.game_box > .empty_game_box').length) {
-        fillslot.button('disable');
+
+                    game.infoCardHardDisable();
+                    target_slot.html(game.html());
+                    if (status === '1') {
+                        target_slot.addClass('beaten');
+                    } else if(played === '0') {
+                        target_slot.addClass('unplayed');
+                    }
+                    game.draggable('disable');
+                    game.off('click', '.game_image', addInfoCard);
+                    target_slot.setGameBoxDrag();
+                    target_slot.children('.game_image').activeInfoCard();
+                    target_slot.addTooltip();
+
+                    if (!$('.game_box > .empty_game_box').length) {
+                        $(this).button('disable');
+                    }
+                } else {
+                    errorMessage('No eligible game found. :(');
+                }
+
+                $(this).removeClass('ui-state-focus');
+                $('.ui-tooltip').remove();
+            });
+
+        if (!$('.game_box > .empty_game_box').length) {
+            fillslot.button('disable');
+        }
+
+        $('#refresh')
+            .button({
+                text: false,
+                disabled: true,
+                icons: {
+                    primary: 'ui-icon-refresh'
+                }
+            })
+            .click(function () {
+                loadData('getsteamdata');
+                $(this).button('disable');
+                $(this).removeClass('ui-state-focus');
+                $('.ui-tooltip').remove();
+            });
+
+        $('#showsettings')
+            .button({
+                text: false,
+                icons: {
+                    primary: 'ui-icon-wrench'
+                }
+            })
+            .click(function () {
+                $('#settings').dialog({
+                    draggable: true,
+                    title: 'Settings',
+                    width: '80%',
+                    modal: true,
+                    buttons: [
+                        {
+                            text: "Save & Close", click: function () {
+                            var x,
+                                newtobeatnum = parseInt($('#numgames').val(), 10),
+                                gameid,
+                                box,
+                                newconsiderbeaten = $('#considerbeaten').attr('checked') ? '1' : '0',
+                                newhidequickstats = $('#hidequickstats').attr('checked') ? '1' : '0',
+                                newhideaccountstats = $('#hideaccountstats').attr('checked') ? '1' : '0',
+                                newaccountprivacy = $('#private').attr('checked') ? '1' : '0',
+                                newhidesocial = $('#hidesocial').attr('checked') ? '1' : '0',
+
+                                socialdiv = $('#social');
+
+                            if (tobeatnum !== newtobeatnum) {
+                                loadData('savenumtobeat', 0, newtobeatnum);
+
+                                if (newtobeatnum > tobeatnum) {
+                                    // Add more cards
+                                    for (x = (parseInt(tobeatnum, 10) + 1); x <= newtobeatnum; x = x + 1) {
+                                        $('.game_boxes').append('<div id="game_box_' + x + '" class="game_box"><div class="empty_game_box"></div></div>');
+                                        $('#game_box_' + x).setListDrop();
+                                    }
+                                    $('.pin').button('enable');
+                                    $('#fillslot').button('enable');
+                                } else {
+                                    for (x = parseInt(tobeatnum, 10); x > newtobeatnum; x = x - 1) {
+                                        box = $('#game_box_' + x);
+                                        gameid = box.children('.game_image').attr('data-gameid');
+                                        $('.list_boxes').find('#' + gameid).draggable('enable').on('click', '.game_image', addInfoCard);
+                                        box.remove();
+                                    }
+                                    if (!$('.game_box > .empty_game_box').length) {
+                                        $('#fillslot').button('disable');
+                                        $('.pin').button('disable');
+                                    }
+                                }
+
+                                tobeatnum = newtobeatnum;
+                                scrollerCheck();
+                            }
+
+                            if (considerbeaten !== newconsiderbeaten) {
+                                loadData('saveconsiderbeaten', 0, newconsiderbeaten);
+
+                                considerbeaten = newconsiderbeaten;
+                            }
+
+                            if (hidequickstats !== newhidequickstats) {
+                                loadData('savehidequickstats', 0, newhidequickstats);
+                                hidequickstats = newhidequickstats;
+                                if (hidequickstats === '1') {
+                                    $('.stat_box').css('display', 'none');
+                                    $('.time_box').css('display', 'none');
+                                } else {
+                                    $('.stat_box').css('display', '');
+                                    $('.time_box').css('display', '');
+                                }
+                            }
+
+                            if (hideaccountstats !== newhideaccountstats) {
+                                loadData('savehideaccountstats', 0, newhideaccountstats);
+                                hideaccountstats = newhideaccountstats;
+                                if (hideaccountstats === '1') {
+                                    $('#account_stats').css('display', 'none');
+                                } else {
+                                    $('#account_stats').css('display', '');
+                                }
+                            }
+
+                            if (hidesocial !== newhidesocial) {
+                                loadData('savehidesocial', 0, newhidesocial);
+                                hidesocial = newhidesocial;
+                                if (hidesocial === '1') {
+                                    socialdiv.css('display', 'none');
+                                } else {
+
+                                    if(socialdiv.children().length === 0) {
+                                        socialdiv.html('<a class="addthis_button_facebook"></a><a class="addthis_button_twitter"></a><a class="addthis_button_google_plusone_share"></a><a class="addthis_button_compact"></a><a class="addthis_counter addthis_bubble_style"></a>');
+                                        $.getScript("http://s7.addthis.com/js/300/addthis_widget.js#pubid=ra-518cf75f752f8e26&domready=1");
+                                    }
+                                    socialdiv.css('display', '');
+                                }
+                            }
+
+                            if (accountprivacy !== newaccountprivacy) {
+                                loadData('saveprivate', 0, newaccountprivacy);
+                                accountprivacy = newaccountprivacy;
+                            }
+
+                            $(this).dialog("close");
+                        }},
+                        { text: "Cancel", click: function () {
+                            select[0].selectedIndex = tobeatnum - 1;
+                            slider.slider("value", select[0].selectedIndex + 1);
+                            if (considerbeaten === '1') {
+                                $('#considerbeaten').prop("checked", true);
+                            } else {
+                                $('#considerbeaten').prop("checked", false);
+                            }
+                            if (hidequickstats === '1') {
+                                $('#hidequickstats').prop("checked", true);
+                            } else {
+                                $('#hidequickstats').prop("checked", false);
+                            }
+                            if (hideaccountstats === '1') {
+                                $('#hideaccountstats').prop("checked", true);
+                            } else {
+                                $('#hideaccountstats').prop("checked", false);
+                            }
+                            if (hidesocial === '1') {
+                                $('#hidesocial').prop('checked', true);
+                            } else {
+                                $('#hidesocial').prop('checked', false);
+                            }
+                            if (accountprivacy === '1') {
+                                $('#private').prop('checked', true);
+                            } else {
+                                $('#private').prop('checked', false);
+                            }
+                            $(this).dialog("close");
+                        }}
+                    ]
+                });
+            });
     }
 
-    $('#refresh')
+    $('[placeholder]').focus(function() {
+        var input = $(this);
+        if (input.val() === input.attr('placeholder')) {
+            input.val('');
+            input.removeClass('placeholder');
+        }
+    }).blur(function() {
+            var input = $(this);
+            if (input.val() === '' || input.val() === input.attr('placeholder')) {
+                input.addClass('placeholder');
+                input.val(input.attr('placeholder'));
+            }
+        }).blur();
+
+    searchform.on('submit', sendSearchForm);
+
+    $('#search')
         .button({
             text: false,
-            disabled: true,
             icons: {
-                primary: 'ui-icon-refresh'
+                primary: 'ui-icon-search'
             }
         })
         .click(function () {
-            loadData('getsteamdata');
-            $(this).button('disable');
+            searchform.submit();
             $(this).removeClass('ui-state-focus');
             $('.ui-tooltip').remove();
-        });
-
-    $('#showsettings')
-        .button({
-            text: false,
-            icons: {
-                primary: 'ui-icon-wrench'
-            }
-        })
-        .click(function () {
-            $('#settings').dialog({
-                draggable: true,
-                title: 'Settings',
-                width: '80%',
-                modal: true,
-                buttons: [
-                    {
-                        text: "Save & Close", click: function () {
-                        var x,
-                            newtobeatnum = parseInt($('#numgames').val(), 10),
-                            gameid,
-                            box,
-                            newconsiderbeaten = $('#considerbeaten').attr('checked') ? '1' : '0',
-                            newhidequickstats = $('#hidequickstats').attr('checked') ? '1' : '0',
-                            newhideaccountstats = $('#hideaccountstats').attr('checked') ? '1' : '0',
-                            newhidesocial = $('#hidesocial').attr('checked') ? '1' : '0',
-                            socialdiv = $('#social');
-
-                        if (tobeatnum !== newtobeatnum) {
-                            loadData('savenumtobeat', 0, newtobeatnum);
-
-                            if (newtobeatnum > tobeatnum) {
-                                // Add more cards
-                                for (x = (parseInt(tobeatnum, 10) + 1); x <= newtobeatnum; x = x + 1) {
-                                    $('.game_boxes').append('<div id="game_box_' + x + '" class="game_box"><div class="empty_game_box"></div></div>');
-                                    $('#game_box_' + x).setListDrop();
-                                }
-                                $('.pin').button('enable');
-                                $('#fillslot').button('enable');
-                            } else {
-                                for (x = parseInt(tobeatnum, 10); x > newtobeatnum; x = x - 1) {
-                                    box = $('#game_box_' + x);
-                                    gameid = box.children('.game_image').attr('data-gameid');
-                                    $('.list_boxes').find('#' + gameid).draggable('enable').on('click', '.game_image', addInfoCard);
-                                    box.remove();
-                                }
-                                if (!$('.game_box > .empty_game_box').length) {
-                                    $('#fillslot').button('disable');
-                                    $('.pin').button('disable');
-                                }
-                            }
-
-                            tobeatnum = newtobeatnum;
-                            scrollerCheck();
-                        }
-
-                        if (considerbeaten !== newconsiderbeaten) {
-                            loadData('saveconsiderbeaten', 0, newconsiderbeaten);
-
-                            considerbeaten = newconsiderbeaten;
-                        }
-
-                        if (hidequickstats !== newhidequickstats) {
-                            loadData('savehidequickstats', 0, newhidequickstats);
-                            hidequickstats = newhidequickstats;
-                            if (hidequickstats === '1') {
-                                $('.stat_box').css('display', 'none');
-                                $('.time_box').css('display', 'none');
-                            } else {
-                                $('.stat_box').css('display', '');
-                                $('.time_box').css('display', '');
-                            }
-                        }
-
-                        if (hideaccountstats !== newhideaccountstats) {
-                            loadData('savehideaccountstats', 0, newhideaccountstats);
-                            hideaccountstats = newhideaccountstats;
-                            if (hideaccountstats === '1') {
-                                $('#account_stats').css('display', 'none');
-                            } else {
-                                $('#account_stats').css('display', '');
-                            }
-                        }
-
-                        if (hidesocial !== newhidesocial) {
-                            loadData('savehidesocial', 0, newhidesocial);
-                            hidesocial = newhidesocial;
-                            if (hidesocial === '1') {
-                                socialdiv.css('display', 'none');
-                            } else {
-
-                                if(socialdiv.children().length === 0) {
-                                    socialdiv.html('<a class="addthis_button_facebook"></a><a class="addthis_button_twitter"></a><a class="addthis_button_google_plusone_share"></a><a class="addthis_button_compact"></a><a class="addthis_counter addthis_bubble_style"></a>');
-                                    $.getScript("http://s7.addthis.com/js/300/addthis_widget.js#pubid=undefined&domready=1");
-                                }
-                                socialdiv.css('display', '');
-                            }
-                        }
-
-                        $(this).dialog("close");
-                    }},
-                    { text: "Cancel", click: function () {
-                        select[0].selectedIndex = tobeatnum - 1;
-                        slider.slider("value", select[0].selectedIndex + 1);
-                        if (considerbeaten === '1') {
-                            $('#considerbeaten').prop("checked", true);
-                        } else {
-                            $('#considerbeaten').prop("checked", false);
-                        }
-                        if (hidequickstats === '1') {
-                            $('#hidequickstats').prop("checked", true);
-                        } else {
-                            $('#hidequickstats').prop("checked", false);
-                        }
-                        if (hideaccountstats === '1') {
-                            $('#hideaccountstats').prop("checked", true);
-                        } else {
-                            $('#hideaccountstats').prop("checked", false);
-                        }
-                        if (hidesocial === '1') {
-                            $('#hidesocial').prop('checked', true);
-                        } else {
-                            $('#hidesocial').prop('checked', false);
-                        }
-                        $(this).dialog("close");
-                    }}
-                ]
-            });
         });
 
     $('#stats').dialog({
@@ -1491,22 +1657,36 @@ $(document).ready(function () {
             var stats = $('#stats');
 
             if(statsData === undefined) {
-                stats.empty().append('<p><br><img src="img/loading.gif" alt="Loading" height="16" width="16"><br>Stats are loading, please wait.</p>');
+                stats.empty().append('<p><br><img src="/img/loading.gif" alt="Loading" height="16" width="16"><br>Stats are loading, please wait.</p>');
                 loadData('stats', 0, 0);
             }
             stats.dialog("open");
         });
 
-    $('#logout')
-        .button({
-            text: false,
-            icons: {
-                primary: 'ui-icon-power'
-            }
-        })
-        .click(function () {
-            window.location.href = "?logout";
-        });
+    if(!isowner) {
+        $('#home')
+            .button({
+                text: false,
+                icons: {
+                    primary: 'ui-icon-home'
+                }
+            })
+            .click(function () {
+                window.location.href = "/";
+            });
+    } else {
+        $('#logout')
+            .button({
+                text: false,
+                icons: {
+                    primary: 'ui-icon-power'
+                }
+            })
+            .click(function () {
+                window.location.href = "/?logout";
+            });
+    }
+
 
     terms.dialog({
         draggable: true,
@@ -1540,25 +1720,29 @@ $(document).ready(function () {
     // Binds the addInfoCard function to mouseclick on game images.
     $('.list_box:not(.disabled)').on('click', '.game_image', addInfoCard);
 
-    // Enables dragging of list_box elements
-    $('.list_box').setListDrag();
-
-    // Disables dragging on list_box elements that are already in the "to beat" list
-    $('.list_box.disabled').draggable('disable').removeClass('disabled');
-
-    $('.list_box.blacklisted').draggable('disable').removeClass('ui-state-disabled');
-
-    // Makes the "to beat" boxes droppable
-    $('.game_box').setListDrop();
-
     // Activates the InfoCards for games in the "to beat" list
     gamebox.activeInfoCard();
 
-    // Makes "to beat" games draggable
-    gamebox.parent().setGameBoxDrag();
+    // Enables dragging of list_box elements
+    if(isowner) {
+        $('.list_box').setListDrag();
 
-    // Makes the entire lower area droppable
-    $('.list_wrapper').setGameBoxDrop();
+        // Disables dragging on list_box elements that are already in the "to beat" list
+        $('.list_box.disabled').draggable('disable').removeClass('disabled');
+
+        $('.list_box.blacklisted').draggable('disable').removeClass('ui-state-disabled');
+
+        // Makes the "to beat" boxes droppable
+        $('.game_box').setListDrop();
+
+        // Makes the entire lower area droppable
+        $('.list_wrapper').setGameBoxDrop();
+
+        // Makes "to beat" games draggable
+        gamebox.parent().setGameBoxDrag();
+    } else {
+        $('.list_box.disabled').addClass('ui-state-disabled').removeClass('disabled');
+    }
 
     // Register the resize handler to make room for the scrollbar
     $(window).on('resize', scrollerCheck);
@@ -1570,8 +1754,6 @@ $(document).ready(function () {
             delay: 500
         }
     });
-
-    scrollerCheck();
 
     stats.owned = listbox.length;
     stats.played = listbox.filter('[data-minutestotal!=0][data-achievper!=100][data-status=0]').length;
@@ -1588,6 +1770,7 @@ $(document).ready(function () {
 
     // Triggers an initial AJAX request
     if (loggeduser > 0) {
+        scrollerCheck();
         loadData('getsteamdata');
     }
 });

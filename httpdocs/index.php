@@ -4,12 +4,8 @@
  * Prepares everything and then uses the WebSite class to display the website.
  *
  * @author Felix Kastner <felix@chapterfain.com>
+ * @todo: Use the search for vanity URL steam API call
  */
-
-// Forward the browser to http://www.URL.com if it gets accessed through http://url.com
-if (substr($_SERVER['HTTP_HOST'], 0, 4) !== 'www.') {
-    header('Location: http://www.' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
-}
 
 // Set up the session ( SGS = Steam Game Session )
 session_name('SGS');
@@ -30,6 +26,7 @@ use Classes\Common\OpenID\LightOpenID as LightOpenID;
 use Classes\Common\Logger\DbLogger as DbLogger;
 use Classes\Common\Util\Util as Util;
 use Classes\SteamCompletionist\Steam\SteamUser as SteamUser;
+use Classes\SteamCompletionist\Steam\SteamUserSearch as SteamUserSearch;
 use Classes\SteamCompletionist\Html\WebSite as WebSite;
 
 $website = new WebSite();
@@ -87,7 +84,7 @@ try {
         $user->userId = substr($openid->data['openid_claimed_id'], 36);
 
         $c['steamUser'] = $c->share(function ($c) {
-            return new SteamUser($c['config']->steam, $c['user']->userId, $c['db'], $c['util'], $c['logger']);
+            return new SteamUser($c['config']->steam, $c['user']->userId, $c['db'], $c['util'], $c['logger'], true);
         });
 
         /** @var SteamUser $steamUser */
@@ -99,7 +96,8 @@ try {
 
         $_SESSION = $user->session;
         $_COOKIE = $user->cookie;
-        header('Location: http://' . $_SERVER['HTTP_HOST'] . substr($_SERVER['REQUEST_URI'], 0, strpos($_SERVER['REQUEST_URI'], '?')));
+
+        header('Location: http://' . $_SERVER['HTTP_HOST'] . substr($_SERVER['REQUEST_URI'], 0, (strpos($_SERVER['REQUEST_URI'], '?')-1)) . '/' . $user->userId . '/');
     } elseif ($openid->mode) {
         throw new Exception('Login through Steam failed.');
     }
@@ -110,17 +108,22 @@ try {
         $user->logout();
         $_SESSION = $user->session;
         $_COOKIE = $user->cookie;
-        header('Location: http://' . $_SERVER['HTTP_HOST'] . substr($_SERVER['REQUEST_URI'], 0, strpos($_SERVER['REQUEST_URI'], '?')));
+        header('Location: http://' . $_SERVER['HTTP_HOST'] . substr($_SERVER['REQUEST_URI'], 0, (strpos($_SERVER['REQUEST_URI'], '?')-1)));
+    } elseif ($user->loggedIn() && !isset($_GET['user'])) {
+        header('Location: http://' . $_SERVER['HTTP_HOST'] . substr($_SERVER['REQUEST_URI'], 0, (strpos($_SERVER['REQUEST_URI'], '?')-1)) . '/' . $user->userId . '/');
     }
 
-    // If user is not logged in, we can exit out of the try block and show the website in logged out state.
-    if (!$user->loggedIn()) {
+    // If user is not logged in and isn't looking at someone elses profile, we can exit out of the try block and show the website in logged out state.
+    if (!isset($_GET['user'])) {
         throw new Exception;
     }
 
     $c['steamUser'] = $c->share(function ($c) {
-        return new SteamUser($c['config']->steam, $c['user']->userId, $c['db'], $c['util'], $c['logger']);
+        return new SteamUser($c['config']->steam, $_GET['user'], $c['db'], $c['util'], $c['logger'], $_GET['user'] === $c['user']->userId);
     });
+
+    /** @var User $loggedUser */
+    $loggedUser = $c['user'];
 
     /** @var SteamUser $steamUser */
     $steamUser = $c['steamUser'];
@@ -128,11 +131,17 @@ try {
     // Load the local userdata ( will fall back to remote loading if no local data is available )
     $steamUser->loadLocalUserInfo();
 
+    // We need at least the localUserInfo loaded in order to tell whether this profile is set to private or not.
+    if($steamUser->private && !$steamUser->isOwner) {
+        throw new Exception('This profile is private.');
+    }
+
     // Load the local gamedata ( will fall back to remote loading if no local data is available )
     $steamUser->loadLocalGames();
 
     // Populate websites' steamUser
     $website->setSteamUser($steamUser);
+    $website->setUser($loggedUser);
 
 } catch (Exception $e) {
     $website->error = $e->getMessage();

@@ -2,6 +2,7 @@
 
 namespace Classes\SteamCompletionist\Html;
 
+use Classes\Common\User\User;
 use Classes\SteamCompletionist\Steam\SteamGame;
 use Classes\SteamCompletionist\Steam\SteamUser;
 
@@ -27,6 +28,11 @@ class WebSite
      */
     private $steamUser;
 
+    /**
+     * Holds the currently active logged in User.
+     * @var User $user
+     */
+    private $user;
 
     /**
      * Sets active Steam User.
@@ -36,6 +42,16 @@ class WebSite
     public function setSteamUser(SteamUser $steamUser)
     {
         $this->steamUser = $steamUser;
+    }
+
+    /**
+     * Sets logged in user.
+     *
+     * @param User $user
+     */
+    public function setUser(User $user)
+    {
+        $this->user = $user;
     }
 
     /**
@@ -51,10 +67,18 @@ class WebSite
         <head>
             <meta charset="utf-8"/>
             <title><?= $title ?></title>
-            <link rel='icon' href='favicon.png' type='image/png' />
-            <link rel="stylesheet" href="css/reset.css?<?=filectime('css/reset.css')?>" type="text/css"/>
-            <link rel="stylesheet" href="css/jquery-ui-1.10.0.custom.min.css?<?=filectime('css/jquery-ui-1.10.0.custom.min.css')?>" type="text/css"/>
-            <link rel="stylesheet" href="css/main.css?<?=filectime('css/main.css')?>" type="text/css"/>
+            <link rel='icon' href='/favicon.png' type='image/png' />
+            <link rel="stylesheet" href="/css/reset.css?<?=filectime('css/reset.css')?>" type="text/css"/>
+            <link rel="stylesheet" href="/css/jquery-ui-1.10.0.custom.min.css?<?=filectime('css/jquery-ui-1.10.0.custom.min.css')?>" type="text/css"/>
+            <link rel="stylesheet" href="/css/main.css?<?=filectime('css/main.css')?>" type="text/css"/>
+            <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+            <script type="text/javascript" src="/js/jquery-1.8.3.min.js?<?=filectime('js/jquery-1.8.3.min.js')?>"></script>
+            <script type="text/javascript" src="/js/jquery-ui-1.10.0.custom.min.js?<?=filectime('js/jquery-ui-1.10.0.custom.min.js')?>"></script>
+            <script type="text/javascript" src="/js/main.js?<?=filectime('js/main.js')?>"></script>
+            <!--[if IE]>
+            <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+            <!--[if lt IE 9]>
+            <script src="http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js"></script><![endif]-->
         </head>
         <body class="home">
     <?PHP
@@ -68,11 +92,11 @@ class WebSite
         ?>
         <div class="private">
             <h1>
-                <strong>Your Profile is set to private :(</strong>
+                <strong>The Profile is set to private :(</strong>
             </h1>
 
             <h2>
-                <strong>SteamCompletionist.net</strong> can only display your games if you set your profile to
+                <strong>SteamCompletionist.net</strong> can only display the games if the profile is set to
                 "public".<br>
                 <a href="steam://url/SteamIDEditPage">Click here to go to your profile settings in the steam client</a>
                 -&gt; <a href="">Then click here to retry</a><br>
@@ -95,16 +119,17 @@ class WebSite
 
                 <div class="steamuser">
                     <?PHP
-                    if ($this->steamUser) {
-                        //Logged In
+                    if ($this->steamUser && $this->steamUser->isOwner) {
+                        // Viewing account & is logged in as owner
                         $userdata = $this->steamUser->getUserData();
                         ?>
                         <div class="logged">
                             <p class="loader"><img src="../../../img/loading.gif" alt="Loading" height="16" width="16"><br>Working...
                             </p>
-                            <button id="showbeat" class="topbutton">Toggle showing games you've beaten</button>
-                            <button id="showblacklisted" class="topbutton">Toggle showing games you've blacklisted
-                            </button>
+                            <form id="usersearch">
+                                <input class="searchbar" type="text" name="search" id="searchbar" placeholder="Steam ID/Custom ID" size="18" >
+                            </form>
+                            <button id="search" class="topbutton">Search</button>
                             <button id="fillslot" class="topbutton">Add random game</button>
                             <button id="refresh" class="topbutton">Refresh</button>
                             <button id="showsettings" class="topbutton">Settings</button>
@@ -126,13 +151,57 @@ class WebSite
                             </div>
                         </div>
                     <?PHP
+                    } else if($this->steamUser) {
+                        // Viewing account but is NOT logged in as owner
+                        $userdata = $this->steamUser->getUserData();
+                        ?>
+                        <div class="logged">
+                            <p class="loader"><img src="../../../img/loading.gif" alt="Loading" height="16" width="16"><br>Working...
+                            </p>
+                            <form id="usersearch">
+                                <input class="searchbar" type="text" name="search" id="searchbar" placeholder="Steam ID/Custom ID" size="18" >
+                            </form>
+                            <button id="search" class="topbutton">Search</button>
+                            <button id="showstats" class="topbutton">Stats</button>
+                            <button id="showhelp" class="topbutton">FAQ & Terms</button>
+                            <button id="home" class="topbutton">Home</button>
+                            <?PHP
+                            if(!$this->user || !$this->user->loggedIn()) {
+                                // Visitor is not logged in, so we display the login button
+                                ?><div class="loginsteam loginsteamfix">
+                                    <a href="/?login">
+                                        <img class="steamlogin" src="../../../img/sits_small.png" width="154" height="23"
+                                             alt="Sign in through Steam"/>
+                                    </a>
+                                </div><?PHP
+                            }
+                            ?>
+                            <div id="userdata">
+                                <img
+                                    class="avatar<?= $userdata['class'] ?>"
+                                    src="<?= $userdata['avatar'] ?>"
+                                    width="32" height="32" alt="Steam avatar"/>
+                                <span
+                                    class="statustext<?= $userdata['class'] ?>"><?= $userdata['name'] ?>
+                                    <br>
+                                    <?= $userdata['status'] ?>
+                                    <br>
+                                    <span id="points"><?= $this->steamUser->points ?></span> Points
+                                </span>
+                            </div>
+                        </div>
+                    <?PHP
                     } else {
                         // Logged Out
                         ?>
                         <div class="login">
+                            <form id="usersearch">
+                                <input class="searchbar searchmarginfix" type="text" name="search" id="searchbar" placeholder="Steam ID/Custom ID" size="18" >
+                            </form>
+                            <button id="search" class="topbutton">Search</button>
                             <button id="showhelp" class="topbutton">FAQ & Terms</button>
                             <div class="loginsteam">
-                                <a href="?login">
+                                <a href="/?login">
                                     <img class="steamlogin" src="../../../img/sits_small.png" width="154" height="23"
                                          alt="Sign in through Steam"/>
                                 </a>
@@ -151,7 +220,7 @@ class WebSite
     /**
      * Displays the Steam User's "to beat" bar.
      */
-    private function toBeatBar($toBeatNum, $hideAccountStats)
+    private function toBeatBar()
     {
         ?>
         <header class="games">
@@ -161,12 +230,12 @@ class WebSite
                     <?PHP
                     //if $hideAccountStats is true, we attach style="display:none" into the div box.
                     $accountCSS = '';
-                    if($hideAccountStats) {
+                    if($this->steamUser->hideAccountStats) {
                         $accountCSS = ' style="display:none"';
                     }
                     echo '<div id="account_stats"' . $accountCSS . ' class="account_stat_box"></div>';
 
-                    for ($x = 1; $x <= $toBeatNum; $x++) {
+                    for ($x = 1; $x <= $this->steamUser->toBeatNum; $x++) {
                         $string = '';
                         $beaten = '';
                         // Create the game box / empty box
@@ -310,11 +379,18 @@ class WebSite
     /**
      * Displays the settings pop-up window. Also contains the state of some toggles.
      */
-    private function settings($toBeatNum, $considerBeaten, $hideQuickStats, $hideAccountStats, $hideSocial)
+    private function settings()
     {
+        $toBeatNum = $this->steamUser->toBeatNum;
+        $considerBeaten = $this->steamUser->considerBeaten;
+        $hideQuickStats = $this->steamUser->hideQuickStats;
+        $hideAccountStats = $this->steamUser->hideAccountStats;
+        $hideSocial = $this->steamUser->hideSocial;
+        $private = $this->steamUser->private;
+
         ?>
         <div id="settings" data-tobeat="<?= $toBeatNum ?>" data-considerbeaten="<?= $considerBeaten ?>"
-             data-hidequickstats="<?= $hideQuickStats ?>" data-hideaccountstats="<?= $hideAccountStats ?>" data-hidesocial="<?= $hideSocial ?>">
+             data-hidequickstats="<?= $hideQuickStats ?>" data-hideaccountstats="<?= $hideAccountStats ?>" data-hidesocial="<?= $hideSocial ?>" data-private="<?= $private ?>">
             <div class="settings">
                 <form id="scsettings" autocomplete="off">
                     <label for="numgames">Number of games you wish to play concurrently</label>
@@ -368,6 +444,15 @@ class WebSite
                     }
                     ?>
                     <label for="hidesocial">Hide the social sharing bar at the bottom</label>
+                    <br>
+                    <?PHP
+                    if ($private) {
+                        ?><input id="private" type="checkbox" name="private" checked><?PHP
+                    } else {
+                        ?><input id="private" type="checkbox" name="private"><?PHP
+                    }
+                    ?>
+                    <label for="private">Prevent people other than myself from viewing my Steam Completionist page</label>
                 </form>
             </div>
         </div>
@@ -376,13 +461,15 @@ class WebSite
 
     /**
      * Displays the HTML for the Terms / FAQ pop-up window. Also includes the userid for JS.
-     *
-     * @param int $userid
      */
-    private function terms($userid = 0)
+    private function terms()
     {
+        if($this->steamUser) {
+            ?><div id="terms" data-user="<?= $this->steamUser->steamId ?>" data-owner="<?= $this->steamUser->isOwner ? 1 : 0 ?>"><?PHP
+        } else {
+            ?><div id="terms" data-user="0" data-owner="0"><?PHP
+        }
         ?>
-        <div id="terms" data-user="<?= $userid ?>">
             <div class="terms">
                 <p><strong>Features that are not obvious</strong><br></p>
                     <ol>
@@ -462,8 +549,13 @@ class WebSite
     /**
      * Displays the footer.
      */
-    private function footer($disableSocial = 0)
+    private function footer()
     {
+        if($this->steamUser) {
+            $disableSocial = $this->steamUser->hideSocial;
+        } else {
+            $disableSocial = false;
+        }
         $credits_class = '';
         if(!$disableSocial) {
             $credits_class = ' credits_left';
@@ -484,7 +576,7 @@ class WebSite
                 <a class="addthis_button_google_plusone_share"></a>
                 <a class="addthis_button_compact"></a><a class="addthis_counter addthis_bubble_style"></a>
             </div>
-            <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=undefined"></script>
+            <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=ra-518cf75f752f8e26"></script>
             <?PHP
         } else {
             ?>
@@ -492,14 +584,6 @@ class WebSite
         <?PHP
         }
         ?>
-        <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-        <script type="text/javascript" src="js/jquery-1.8.3.min.js?<?=filectime('js/jquery-1.8.3.min.js')?>"></script>
-        <script type="text/javascript" src="js/jquery-ui-1.10.0.custom.min.js?<?=filectime('js/jquery-ui-1.10.0.custom.min.js')?>"></script>
-        <script type="text/javascript" src="js/main.js?<?=filectime('js/main.js')?>"></script>
-        <!--[if IE]>
-        <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
-        <!--[if lt IE 9]>
-        <script src="http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js"></script><![endif]-->
         </body>
         </html>
     <?PHP
@@ -519,7 +603,7 @@ class WebSite
         $this->userBar();
 
         if ($this->steamUser && $this->steamUser->profileState == 3) {
-            $this->toBeatBar($this->steamUser->toBeatNum, $this->steamUser->hideAccountStats);
+            $this->toBeatBar();
             $this->gamesList();
         } elseif ($this->steamUser) {
             // Profile is private.
@@ -527,10 +611,10 @@ class WebSite
         }
 
         if ($this->steamUser) {
-            $this->settings($this->steamUser->toBeatNum, $this->steamUser->considerBeaten, $this->steamUser->hideQuickStats, $this->steamUser->hideAccountStats, $this->steamUser->hideSocial);
+            $this->settings();
             $this->stats();
-            $this->terms($this->steamUser->steamId);
-            $this->footer($this->steamUser->hideSocial);
+            $this->terms();
+            $this->footer();
         } else {
             $this->terms();
             $this->footer();
