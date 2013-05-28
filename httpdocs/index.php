@@ -26,7 +26,6 @@ use Classes\Common\OpenID\LightOpenID as LightOpenID;
 use Classes\Common\Logger\DbLogger as DbLogger;
 use Classes\Common\Util\Util as Util;
 use Classes\SteamCompletionist\Steam\SteamUser as SteamUser;
-use Classes\SteamCompletionist\Steam\SteamUserSearch as SteamUserSearch;
 use Classes\SteamCompletionist\Html\WebSite as WebSite;
 
 $website = new WebSite();

@@ -88,15 +88,18 @@ class SteamUserSearch
     }
 
     /**
-     * Searches for a Steam Custom ID by accessing the steamcommunity.com page. No API call required.
+     * Searches for a Steam Custom ID via API call.
      *
      * @return bool|string
      */
     private function searchSteamCustom()
     {
-        $userInfo = @simplexml_load_string($this->util->file_get_contents_curl('http://steamcommunity.com/id/' . $this->searchString . '/?xml=1'));
-        if($userInfo && $userInfo->steamID64) {
-            return (string)$userInfo->steamID64;
+        $userInfo = @json_decode($this->util->file_get_contents_curl('http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key=' . $this->config['key'] . '&vanityurl=' . urlencode($this->searchString)), true)['response']['steamid'];
+        $this->db->prepare('INSERT INTO `steamAPIUsage` SET `module` = 1');
+        $this->db->execute();
+
+        if($userInfo) {
+            return $userInfo['steamid'];
         }
         return false;
     }
