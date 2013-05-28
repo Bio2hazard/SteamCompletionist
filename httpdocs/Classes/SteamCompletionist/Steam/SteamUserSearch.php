@@ -94,7 +94,7 @@ class SteamUserSearch
      */
     private function searchSteamCustom()
     {
-        $userInfo = @json_decode($this->util->file_get_contents_curl('http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key=' . $this->config['key'] . '&vanityurl=' . urlencode($this->searchString)), true)['response']['steamid'];
+        $userInfo = @json_decode($this->util->file_get_contents_curl('http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?key=' . $this->config['key'] . '&vanityurl=' . urlencode($this->searchString)), true)['response']->steamId;
         $this->db->prepare('INSERT INTO `steamAPIUsage` SET `module` = 1');
         $this->db->execute();
 
