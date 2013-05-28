@@ -4,7 +4,6 @@
  * Prepares everything and then uses the WebSite class to display the website.
  *
  * @author Felix Kastner <felix@chapterfain.com>
- * @todo: Use the search for vanity URL steam API call
  */
 
 // Set up the session ( SGS = Steam Game Session )
