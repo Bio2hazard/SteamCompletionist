@@ -262,6 +262,10 @@ div.beaten {
     border-color: #8bc53f;
 }
 
+div.completed {
+	border-color: #ffcc00;
+}
+
 div.blacklisted {
     border-color: #c80000;
 }
