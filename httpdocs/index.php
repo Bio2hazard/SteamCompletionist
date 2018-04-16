@@ -79,7 +79,7 @@ try {
 
     if ($openid->mode === 'id_res' && $openid->validate()) {
         // Login Successful
-        $user->userId = substr($openid->data['openid_claimed_id'], 36);
+        $user->userId = substr($openid->data['openid_claimed_id'], -17);
 
         $c['steamUser'] = $c->share(function ($c) {
             return new SteamUser($c['config']->steam, $c['user']->userId, $c['db'], $c['util'], $c['logger'], true);
