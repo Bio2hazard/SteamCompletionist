@@ -203,6 +203,8 @@ function loadData(mode, gameid, value, search) {
                         $(this).achievementBarAnimate(data.gameachiev.gameid, data.gameachiev.percentage);
                     }
                 }
+				$("[data-achievper=100]").parents("div").addClass("completed");
+				$(".game_image").not("[data-achievper]").parents("div").filter(".beaten").addClass("completed");
             }
         }, 'json');
 }
